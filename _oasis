@@ -1,0 +1,15 @@
+Name: Malfoy
+Version: 0.1
+Synopsis: A language that compiles to Malfunction
+Authors: nv-vn <nv@cock.li>
+License: GPL
+
+OASISFormat: 0.4
+BuildTools: ocamlbuild
+Plugins: META (0.4), DevFiles (0.4)
+
+Executable "malfoy"
+  Path: src/
+  MainIs: main.ml
+  CompiledObject: best
+  BuildDepends: malfunction, compiler-libs.common

@@ -19,5 +19,5 @@ type Api = O $ Start . R [ `Ok $ S [ `Status $ I Bool . End
 
 The code for `Api` corresponds to:
 
-![Api](https://latex.codecogs.com/gif.latex?\inline&space;!\textup{Start}.&\{\textup{Ok}:&space;\oplus\{\textup{Status}:&space;?\textup{Bool}&space;.&space;\varepsilon,&space;\textup{Uptime}:?\textup{Int}&space;.&space;\varepsilon\},&space;\textup{Err}:&space;\varepsilon\})
+![Api](https://latex.codecogs.com/gif.latex?\inline%5Cinline%26space%3B!%5Ctextup%7BStart%7D.%26%5C%7B%5Ctextup%7BOk%7D%3A%26space%3B%5Coplus%5C%7B%5Ctextup%7BStatus%7D%3A%26space%3B%3F%5Ctextup%7BBool%7D%26space%3B.%26space%3B%5Cvarepsilon%2C%26space%3B%5Ctextup%7BUptime%7D%3A%3F%5Ctextup%7BInt%7D%26space%3B.%26space%3B%5Cvarepsilon%5C%7D%2C%26space%3B%5Ctextup%7BErr%7D%3A%26space%3B%5Cvarepsilon%5C%7D)
 

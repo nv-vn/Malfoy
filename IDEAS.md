@@ -42,3 +42,7 @@ let client ep =
   | `Err ep -> close ep
   end
 ```
+
+## Resource type example
+
+...

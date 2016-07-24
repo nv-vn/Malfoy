@@ -46,3 +46,10 @@ let client ep =
 ## Resource type example
 
 ...
+
+
+# Proposed syntax changes
+
+* Maybe stick with OCaml-style syntax for type names/variables, so we don't need to figure out if `type A = A` means a circular type definition or a variant type with the constructor `A`?
+* Not a fan of ```⁣`-``` for tag-only variants, maybe `~` or `@` or something along those lines would be better?
+* It should be significantly easier to express session types/behavioural types than in other languages, but how can we get that? Type-level operators with unicode symbols might be a good start to getting more "math-y" definitions, but is that a real gain?

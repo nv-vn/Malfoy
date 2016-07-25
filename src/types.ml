@@ -45,3 +45,4 @@ let rec string_of_type =
   | Tapply (t, u) -> string_of_type t ^ " " ^ string_of_type u
   | Tvariant row -> string_of_row row
   | Ttag (Tvariant _ as var) -> "-" ^ string_of_type var
+  | Ttag other -> "-(" ^ string_of_type other ^ ")"

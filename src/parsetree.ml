@@ -54,6 +54,8 @@ type type_expr =
   (* TODO: Finish defining these *)
 
 type stmt =
+  (* do e end *)
+  | Sexec of expr
   (* let x = y *)
   | Sbind of string * expr
   (* type t = s *)

@@ -27,6 +27,10 @@ and tag =
   (* `X *)
   | Tname of string
 
+let (??) a = Tvar a
+let (!!) a = Tconst a
+let (@->) a b = Tarrow (a, b)
+
 let rec string_of_type =
   let string_of_row {fields; closed} =
     let fields' =

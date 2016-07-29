@@ -3,7 +3,7 @@
 * Based on polymorphic variants (à la OCaml)
 * Subtyped variant types are inferred based on usage
 * The `-[...]` type allows for accessing the tags directly
-* ``_` in polymorphic variants to match against an unknown tag
+* ```⁣`_``` in polymorphic variants to match against an unknown tag
 
 ## Session types example
 
@@ -51,5 +51,6 @@ let client ep =
 # Proposed syntax changes
 
 * Maybe stick with OCaml-style syntax for type names/variables, so we don't need to figure out if `type A = A` means a circular type definition or a variant type with the constructor `A`?
-* Not a fan of ```⁣`-``` for tag-only variants, maybe `~` or `@` or something along those lines would be better?
+* Not a fan of ``⁣`-``` for tag-only variants, maybe `~` or `@` or something along those lines would be better?
+  + Use `'` for the tags themselves, i.e. `'Abc` is a tag. Can be an operator too?
 * It should be significantly easier to express session types/behavioural types than in other languages, but how can we get that? Type-level operators with unicode symbols might be a good start to getting more "math-y" definitions, but is that a real gain?

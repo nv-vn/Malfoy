@@ -36,5 +36,14 @@ let rec check ast ty =
         | [], ty -> true in
       loop args i_ty
     end
-  (* | Evariant (hash, args), ty -> ... *)
+  | Evariant (hash, args), Tvariant {fields = [Tunknown, ts]} ->
+    List.map2 check args ts |> List.fold_left (&&) true
+  | Evariant (hash, args), Tvariant {fields} ->
+    let (_, ts) = List.find (function Tname s when hash_variant s = hash -> true
+                                    | _ -> false) fields in
+    List.map2 check args ts |> List.fold_left (&&) true
+  | Eapply (fn, arg), ty -> false
+    (* How do we get the type of [fn]?
+       If we know the type of [arg] we can just say [typeof arg -> ty], but we don't. 
+       Time for type inference? *)
   | _ -> true

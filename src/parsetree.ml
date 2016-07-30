@@ -39,8 +39,6 @@ type expr =
   | Eapply of expr * expr
   (* \x -> x *)
   | Efun of pattern list * expr
-  (* match [x] -> x | [] -> 0 *)
-  | Ematchfun of (pattern * expr) list
   (* match x with [x] -> x | [] -> 0 *)
   | Ematch of expr * (pattern * expr) list
   (* let x = y in x *)

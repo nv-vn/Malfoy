@@ -1,8 +1,8 @@
-open Types
+open Type
 
-type ('a, 'b) generation =
+type generation =
   | Genesis
-  | Grow of generation * (Ident.ident, Types.t) Hashtbl.t
+  | Grow of generation * (Id.ident, Type.t) Hashtbl.t
 
 class env initial = object (self)
   val mutable store = Hashtbl.create 100
@@ -21,7 +21,7 @@ class env initial = object (self)
   method leave_scope =
     match restore with
     | Genesis ->
-      store <- Hashtbl.clear store
+      Hashtbl.clear store
     | Grow (last, g) -> begin
         restore <- last;
         store <- g
@@ -38,12 +38,12 @@ class env initial = object (self)
         uniq.[String.length uniq - 1] <- last'
       | _ -> uniq <- uniq ^ "a" in
     let name = prefix ^ uniq in
-    self#register name ty;
+    self#register (Id.Iident name) ty;
     next_uniq ();
     name
 
   initializer
-    for i = 0 to Array.length initial do
+    for i = 0 to Array.length initial - 1 do
       match initial.(i) with
       | (ident, ty) -> Hashtbl.add store ident ty
     done;
@@ -51,15 +51,15 @@ class env initial = object (self)
 end
 
 let default =
-  let int = !!(Ident.Iident "Int")
-  and string = !!(Ident.Iident "String")
-  and unit = !!(Ident.Iident "()")
+  let int = !!(Id.Iident "Int")
+  and string = !!(Id.Iident "String")
+  and unit = !!(Id.Iident "()")
   and list a =
-    Tapply (!!(Ident.Iident "list"), a) in
-  [| Ident.Iident "::", ??"a" @-> list ??"a" @-> list ??"a"
-  ;  Ident.Iident "+", int @-> int @-> int
-  ;  Ident.Iident "-", int @-> int @-> int
-  ;  Ident.Iident "*", int @-> int @-> int
-  ;  Ident.Iident "/", int @-> int @-> int
-  ;  Ident.Iident "print", string @-> unit
+    Tapply (!!(Id.Iident "list"), a) in
+  [| Id.Iident "::", ??"a" @-> list ??"a" @-> list ??"a"
+  ;  Id.Iident "+", int @-> int @-> int
+  ;  Id.Iident "-", int @-> int @-> int
+  ;  Id.Iident "*", int @-> int @-> int
+  ;  Id.Iident "/", int @-> int @-> int
+  ;  Id.Iident "print", string @-> unit
   |]

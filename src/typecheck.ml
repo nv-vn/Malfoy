@@ -1,6 +1,7 @@
-open Env
-open Ident
-open Types
+open Id
+open Ast
+open Type
+open Type_env
 
 let scope = new env default
 and type_vars = new env [| |]
@@ -23,7 +24,7 @@ let rec check ast ty =
   (* TODO: Perform subtyping checks *)
   match ast, ty with
   | Eliteral e, ty -> check_literal e ty
-  | Eident i, ty -> scope#lookup i = ty
+  | Eident i, ty -> scope#lookup i = Some ty
   | Etuple es, Ttuple ts -> List.map2 check es ts |> List.fold_left (&&) true
   | Econstruct (i, args), ty ->
     begin
@@ -34,16 +35,16 @@ let rec check ast ty =
         | arg::args, Tarrow (a, b) -> false (* Type-checking when clause failed *)
         | arg::args, _ -> false (* No more room to apply arguments *)
         | [], ty -> true in
-      loop args i_ty
+      match i_ty with Some ty -> loop args ty | None -> false
     end
   | Evariant (hash, args), Tvariant {fields = [Tunknown, ts]} ->
     List.map2 check args ts |> List.fold_left (&&) true
   | Evariant (hash, args), Tvariant {fields} ->
-    let (_, ts) = List.find (function Tname s when hash_variant s = hash -> true
-                                    | _ -> false) fields in
+    let (_, ts) = List.find (function Tname s, _ when hash_variant s = hash -> true
+                                    | _, _ -> false) fields in
     List.map2 check args ts |> List.fold_left (&&) true
   | Eapply (fn, arg), ty -> false
     (* How do we get the type of [fn]?
-       If we know the type of [arg] we can just say [typeof arg -> ty], but we don't. 
+       If we know the type of [arg] we can just say [typeof arg -> ty], but we don't.
        Time for type inference? *)
   | _ -> true

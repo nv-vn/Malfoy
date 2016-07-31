@@ -8,7 +8,7 @@ type literal =
   (* 1.5 *)
   | Lfloat of float
 
-type variant_hash = int64
+type variant_hash = int
 
 type pattern =
   (* _ *)
@@ -20,7 +20,7 @@ type pattern =
   (* x, y, z *)
   | Ptuple of pattern list
   (* Cons a Nil *)
-  | Pconstruct of Ident.ident * pattern list
+  | Pconstruct of Id.ident * pattern list
   (* `Hi a b c *)
   | Pvariant of variant_hash * pattern list
 
@@ -28,11 +28,11 @@ type expr =
   (* 'a' *)
   | Eliteral of literal
   (* abc *)
-  | Eident of Ident.ident
+  | Eident of Id.ident
   (* 1, 2, 3 *)
   | Etuple of expr list
   (* Cons 1 Nil *)
-  | Econstruct of Ident.ident * expr list
+  | Econstruct of Id.ident * expr list
   (* `Hi 1 2 3 *)
   | Evariant of variant_hash * expr list
   (* f 1 2 3 *)
@@ -46,9 +46,9 @@ type expr =
 
 type type_expr =
   (* () *)
-  | Tident of Ident.ident
+  | TEident of Id.ident
   (* a -> b *)
-  | Tarrow of type_expr * type_expr
+  | TEarrow of type_expr * type_expr
   (* TODO: Finish defining these *)
 
 type stmt =
@@ -59,4 +59,4 @@ type stmt =
   (* type t = s *)
   | Stype of string * type_expr
   (* open X *)
-  | Sopen of Ident.ident
+  | Sopen of Id.ident

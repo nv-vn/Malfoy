@@ -2,7 +2,7 @@ type t =
   (* a *)
   | Tvar of string
   (* A *)
-  | Tconst of Ident.ident
+  | Tconst of Id.ident
   (* A as t *)
   | Tnamed of t * string
   (* A -> B *)
@@ -46,17 +46,18 @@ let rec string_of_type =
   let string_of_row {fields; closed} =
     let fields' =
       List.map (function Tunknown, ts ->
-                           string_of_type (Tapply (Tconst "`_", ts))
+                           List.fold_left (fun t a -> Tapply (t, a)) (Tconst (Id.Iident "`_")) ts |> string_of_type
                        | Tname s, ts ->
-                           string_of_type (Tapply (Tconst s, ts))) fields in
+                           List.fold_left (fun t a -> Tapply (t, a)) (Tconst (Id.Iident s)) ts |> string_of_type)
+               fields in
     "[" ^ if closed then "<" else ">"
         ^ String.concat " | " fields' ^ "]" in
   function
   | Tvar v -> v
-  | Tconst c -> Ident.string_of_ident c
+  | Tconst c -> Id.string_of_ident c
   | Tnamed (t, name) -> string_of_type t ^ " as " ^ name
-  | Tarrow (t, u) -> string_of_type t ^ " -> " string_of_type u
-  | Ttuple ts -> "(" ^ (List.map string_of_type ts |> String.concat ", ") ^ ")" 
+  | Tarrow (t, u) -> string_of_type t ^ " -> " ^ string_of_type u
+  | Ttuple ts -> "(" ^ (List.map string_of_type ts |> String.concat ", ") ^ ")"
   | Tapply (t, u) -> string_of_type t ^ " " ^ string_of_type u
   | Tvariant row -> string_of_row row
   | Ttag (Tvariant _ as var) -> "-" ^ string_of_type var

@@ -3,7 +3,7 @@
 * Based on polymorphic variants (à la OCaml)
 * Subtyped variant types are inferred based on usage
 * Type-level duality
-  + Higher-kinded structural duality (i.e. given the duals `I` and `O`, the dual of `type A = I Int` is `O Int` without being declared explicitly)
+  + Structural duality (i.e. given the duals `I` and `O`, the dual of `type A = I Int` is `O Int` without being declared explicitly)
 * The `-[...]` type allows for accessing the tags directly
 * ```⁣`_``` in polymorphic variants to match against an unknown tag
 
@@ -74,6 +74,17 @@ let () = cospawn myClient myServer
 let () = myServer (spawnPid myClient)
 ```
 
+This duality serves in more complex tasks, such as when using session types.
+
+```
+(* Note that, by default, [Dual] applies recursively to types, but does not change anything not declared.
+   For example, the tags of [cont] will remain the same after [Dual cont], but the types of the tags may
+   be altered by pre-existing rules: a tag [`A (I Int Eps)] will become [`A (O Int Eps)] after the duality
+   is applied. *)
+dual I msg cont <=> O msg (Dual cont)
+dual R cont <=> S (Dual cont)
+```
+
 # Proposed syntax changes
 
 * Maybe stick with OCaml-style syntax for type names/variables, so we don't need to figure out if `type A = A` means a circular type definition or a variant type with the constructor `A`?
@@ -82,3 +93,4 @@ let () = myServer (spawnPid myClient)
 * It should be significantly easier to express session types/behavioural types than in other languages, but how can we get that? Type-level operators with unicode symbols might be a good start to getting more "math-y" definitions, but is that a real gain?
 * `as` syntax in types is kind of wonky... should we have a better way to reduce ambiguity than parens?
 * Should we accept single-line, Haskell-style comments (`-- ...`)?
+* Is `Dual` a pseudo-type? Maybe we should have some other notation? What about `Type*`?

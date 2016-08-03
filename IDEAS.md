@@ -47,7 +47,48 @@ let client ep =
 
 ## Resource type example
 
-...
+First, let's introduce the syntactic sugar for dealing with resource types. Like in Haskell, juggling around extra syntax that's a by-product of some (type)-safety (because of monads for State, IO, Maybe, etc.) sometimes becomes a hassle. In order to make code both more readable and writeable, there's special syntactic sugar for dealing with a single resource:
+
+```ocaml
+trace <var> with
+  <exprs or bindings>*
+end
+```
+
+which becomes:
+
+```ocaml
+begin
+  let <var> = <expr> in
+  let <var>, <bound-var> = <expr> in
+  ...
+end
+```
+
+For example:
+
+```ocaml
+let pointer = Pointer.alt 0 in (* Must alternate between reads and writes *)
+trace pointer with
+  let v = !pointer in (* ! is read *)
+  pointer := v + 1;
+  let w = !pointer * 2 in
+  pointer := v * (w - 3)
+end
+```
+
+desugars to:
+
+```ocaml
+let pointer = Pointer.alt 0 in
+begin
+  let pointer, v = !pointer in
+  let pointer = pointer := v + 1 in
+  let pointer, w = !pointer * 2 in
+  let pointer = pointer := v * (w - 3) in
+  pointer
+end
+```
 
 ## Duality example
 

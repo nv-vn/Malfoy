@@ -42,6 +42,8 @@ class env initial = object (self)
     next_uniq ();
     name
 
+  method clone = {< >}
+
   initializer
     for i = 0 to Array.length initial - 1 do
       match initial.(i) with

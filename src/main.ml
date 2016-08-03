@@ -9,7 +9,5 @@ let prelude = [
 
 let () =
   print_endline begin
-    match Typecheck.check Ast.(Etuple []) Type.(Tvar "a") with
-    | true -> Type.(string_of_type (Ttuple []))
-    | false -> "Error checking types"
+    Type.(string_of_type (Ttuple []))
   end

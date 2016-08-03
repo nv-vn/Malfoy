@@ -12,37 +12,37 @@ type variant_hash = int
 
 type pattern =
   (* _ *)
-  | Pwildcard
+  | Pwildcard of Type.t option
   (* 1 *)
-  | Pliteral of literal
+  | Pliteral of literal * Type.t option
   (* x *)
-  | Pident of string
+  | Pident of string * Type.t option
   (* x, y, z *)
-  | Ptuple of pattern list
+  | Ptuple of pattern list * Type.t option
   (* Cons a Nil *)
-  | Pconstruct of Id.ident * pattern list
+  | Pconstruct of Id.ident * pattern list * Type.t option
   (* `Hi a b c *)
-  | Pvariant of variant_hash * pattern list
+  | Pvariant of variant_hash * pattern list * Type.t option
 
 type expr =
   (* 'a' *)
-  | Eliteral of literal
+  | Eliteral of literal * Type.t option
   (* abc *)
-  | Eident of Id.ident
+  | Eident of Id.ident * Type.t option
   (* 1, 2, 3 *)
-  | Etuple of expr list
+  | Etuple of expr list * Type.t option
   (* Cons 1 Nil *)
-  | Econstruct of Id.ident * expr list
+  | Econstruct of Id.ident * expr list * Type.t option
   (* `Hi 1 2 3 *)
-  | Evariant of variant_hash * expr list
+  | Evariant of variant_hash * expr list * Type.t option
   (* f 1 2 3 *)
-  | Eapply of expr * expr
+  | Eapply of expr * expr * Type.t option
   (* \x -> x *)
-  | Efun of pattern list * expr
+  | Efun of pattern list * expr * Type.t option
   (* match x with [x] -> x | [] -> 0 *)
-  | Ematch of expr * (pattern * expr) list
+  | Ematch of expr * (pattern * expr) list * Type.t option
   (* let x = y in x *)
-  | Ebind of string * expr * expr
+  | Ebind of string * expr * expr * Type.t option
 
 type type_expr =
   (* () *)
@@ -55,7 +55,7 @@ type stmt =
   (* do e end *)
   | Sexec of expr
   (* let x = y *)
-  | Sbind of string * expr
+  | Sbind of string * expr * Type.t option
   (* type t = s *)
   | Stype of string * type_expr
   (* open X *)

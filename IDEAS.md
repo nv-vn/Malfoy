@@ -90,6 +90,45 @@ begin
 end
 ```
 
+Now with syntax out of the way, we can move on to some actual resource types.
+
+To start with a basic example, we'll focus on a reference type (similar to `ref` in OCaml). However, 
+we'll make use of some more powerful types in order to handle it as a resource:
+
+```ocaml
+module Ref = struct
+  type Ref ty res =
+    { value : ty } constraint res = [>]
+
+  val ref : a. res. a -> Ref a res
+
+  val (!) : a. Ref a [> `Read cont] -> (Ref a cont, a)
+  let (!) ref = ({value = ref.value}, ref.value)
+
+  val (:=) : a. b. Ref a [> `Write cont] -> b -> Ref b cont
+  let (:=) ref v = {value = v}
+
+  val (:=>) : a. b. Ref a [> `Read [> `Write cont]] -> (a -> b) -> Ref b cont
+  let (:=>) ref f = {value = f ref.value}
+end
+```
+
+Now using this for a basic example:
+
+```ocaml
+open Ref
+
+val r : Ref Int [`Read [`Stop] | `Write [`Read]]
+let r = ref 0
+
+trace r with
+  let x = !r in
+  r := x + 1 (* Type error:
+                  Value r : Ref Int [`Stop] does not match
+                  type Ref Int [> `Write a]. *)
+end
+```
+
 ## Duality example
 
 ```ocaml
@@ -117,7 +156,7 @@ let () = myServer (spawnPid myClient)
 
 This duality serves in more complex tasks, such as when using session types.
 
-```
+```ocaml
 (* Note that, by default, [Dual] applies recursively to types, but does not change anything not declared.
    For example, the tags of [cont] will remain the same after [Dual cont], but the types of the tags may
    be altered by pre-existing rules: a tag [`A (I Int Eps)] will become [`A (O Int Eps)] after the duality

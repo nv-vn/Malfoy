@@ -56,7 +56,9 @@ type stmt =
   | Sexec of expr
   (* let x = y *)
   | Sbind of string * expr * Type.t option
-  (* type t = s *)
+  (* type T = S *)
   | Stype of string * type_expr
+  (* dual T <=> S *)
+  | Sdual of type_expr * type_expr
   (* open X *)
   | Sopen of Id.ident

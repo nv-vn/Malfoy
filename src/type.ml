@@ -15,6 +15,8 @@ type t =
   | Tvariant of row
   (* -[> `A | `B c] *)
   | Ttag of t (* Needs dynamic check to ensure [t] resolves to [Tvariant] *)
+  (* a* *)
+  | Tdual of t
 
 and row = {
   fields : (tag * t list) list;
@@ -62,3 +64,4 @@ let rec string_of_type =
   | Tvariant row -> string_of_row row
   | Ttag (Tvariant _ as var) -> "-" ^ string_of_type var
   | Ttag other -> "-(" ^ string_of_type other ^ ")"
+  | Tdual t -> string_of_type t ^ "*"

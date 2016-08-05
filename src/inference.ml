@@ -49,28 +49,31 @@ let rec doesn't_occur tvar ty =
   | Tapply (a, b) -> doesn't_occur tvar a || doesn't_occur tvar b
   | Tvariant row -> any (fun (_, ts) -> any (doesn't_occur tvar) ts) row.fields
   | Ttag t -> doesn't_occur tvar t
-  | _ -> false
+  | _ -> true
 
 let rec unify_rows fields1 fields2 subst expr =
-  let compose f g x = f (g x) in
   let (>>=) xs f = List.map f xs |> List.flatten in
   (* Get all sets of matching tags *)
-  let intersect xs ys = xs >>= (fun (tag, _) -> List.filter (compose ((=) tag) fst) ys) in
+  let intersect xs ys =
+    let xtags = List.map fst xs
+    and ytags = List.map fst ys in
+    xtags >>= (fun xtag -> List.filter ((=) xtag) ytags) in
   (* Isolate the tags that are present in both sets *)
-  let present_in_both = intersect fields1 fields2 |> List.map fst in
+  let present_in_both = intersect fields1 fields2 in
   let common_subs =
     (* For every tag present in both, *)
+    present_in_both >>= fun tag ->
+    (* Collect the args for that tag in both sets of fields and group them in pairs *)
+    let args1 = List.assoc tag fields1 and args2 = List.assoc tag fields2 in
+    let both = List.map2 (fun a b -> (a, b)) args1 args2 in
+    (* For every pair, unify them and add them to the list of substitutions *)
     List.map
-      (fun tag ->
-         (* Collect the args for that tag in both sets of fields and group them in pairs *)
-         let args1 = List.assoc tag fields1 and args2 = List.assoc tag fields2 in
-         let both = List.map2 (fun a b -> (a, b)) args1 args2 in
-         (* For every pair, unify them and add them to the list of substitutions *)
-         List.fold_left
-           (fun (arg1, arg2) subst ->
-              unify arg1 arg2 subst expr)
-           subst both)
-      present_in_both in ()
+      (fun (arg1, arg2) ->
+         (* Remove the redundant substitutions after unification *)
+         unify arg1 arg2 subst expr -@ subst)
+      both in
+  (* Add all the substitutions together to the substitutions being unified *)
+  List.fold_left (+@) subst common_subs
 (*
   let absent gs xs =
     List.filter (fun (tag, _) -> not @@ List.exists ((=) tag) gs) xs in
@@ -107,4 +110,4 @@ and unify t1 t2 subst expr =
                              else subst) fields in
     subst *)
   | Ttag t1, Ttag t2 -> unify t1 t2 subst expr
-  | _ -> assert false (* Can't unify types *)
+  | _, _ -> assert false (* Can't unify types *)

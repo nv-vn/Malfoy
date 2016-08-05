@@ -51,7 +51,37 @@ let rec doesn't_occur tvar ty =
   | Ttag t -> doesn't_occur tvar t
   | _ -> false
 
-let rec unify t1 t2 subst expr =
+let rec unify_rows fields1 fields2 subst expr =
+  let compose f g x = f (g x) in
+  let (>>=) xs f = List.map f xs |> List.flatten in
+  (* Get all sets of matching tags *)
+  let intersect xs ys = xs >>= (fun (tag, _) -> List.filter (compose ((=) tag) fst) ys) in
+  (* Isolate the tags that are present in both sets *)
+  let present_in_both = intersect fields1 fields2 |> List.map fst in
+  let common_subs =
+    (* For every tag present in both, *)
+    List.map
+      (fun tag ->
+         (* Collect the args for that tag in both sets of fields and group them in pairs *)
+         let args1 = List.assoc tag fields1 and args2 = List.assoc tag fields2 in
+         let both = List.map2 (fun a b -> (a, b)) args1 args2 in
+         (* For every pair, unify them and add them to the list of substitutions *)
+         List.fold_left
+           (fun (arg1, arg2) subst ->
+              unify arg1 arg2 subst expr)
+           subst both)
+      present_in_both in ()
+(*
+  let absent gs xs =
+    List.filter (fun (tag, _) -> not @@ List.exists ((=) tag) gs) xs in
+  let left_subs = absent present_in_both fields1 |> List.map fst
+  and right_subs = absent present_in_both fields2 |> List.map fst in
+  let all = List.concat [common_subs; left_subs; right_subs] in
+  List.fold_left
+    (fun (arg1, arg2) subst ->
+      unify arg1 arg2 subst expr) subst all *)
+
+and unify t1 t2 subst expr =
   let t1 = apply_substitutions t1 subst
   and t2 = apply_substitutions t2 subst in
   match t1, t2 with

@@ -10,8 +10,9 @@ let prelude = [
 let () =
   let _ =
     let open Type in
-    Inference.unify_rows [Tname "A", [Tvar   "a"]]
-                         [Tname "A", [Tconst (Id.Iident "Int")]]
+    Inference.unify_rows ([Tname "A", [Tvar   "a"];
+                           Tname "B", [Tconst (Id.Iident "Int")]], Tvar "more1")
+                         ([Tname "A", [Tconst (Id.Iident "Int")]], Tvar "more2")
                          Substs.EmptySubst
                          Ast.(Eliteral (Lchar 'a', None)) in
   print_endline begin

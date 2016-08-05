@@ -19,9 +19,7 @@ type pattern =
   | Pident of string * Type.t option
   (* x, y, z *)
   | Ptuple of pattern list * Type.t option
-  (* Cons a Nil *)
-  | Pconstruct of Id.ident * pattern list * Type.t option
-  (* `Hi a b c *)
+  (* Hi a b c *)
   | Pvariant of variant_hash * pattern list * Type.t option
 
 type expr =
@@ -31,9 +29,7 @@ type expr =
   | Eident of Id.ident * Type.t option
   (* 1, 2, 3 *)
   | Etuple of expr list * Type.t option
-  (* Cons 1 Nil *)
-  | Econstruct of Id.ident * expr list * Type.t option
-  (* `Hi 1 2 3 *)
+  (* Hi 1 2 3 *)
   | Evariant of variant_hash * expr list * Type.t option
   (* f 1 2 3 *)
   | Eapply of expr * expr * Type.t option
@@ -44,21 +40,14 @@ type expr =
   (* let x = y in x *)
   | Ebind of string * expr * expr * Type.t option
 
-type type_expr =
-  (* () *)
-  | TEident of Id.ident
-  (* a -> b *)
-  | TEarrow of type_expr * type_expr
-  (* TODO: Finish defining these *)
-
 type stmt =
   (* do e end *)
   | Sexec of expr
   (* let x = y *)
   | Sbind of string * expr * Type.t option
   (* type T = S *)
-  | Stype of string * type_expr
+  | Stype of string * Type.t
   (* dual T <=> S *)
-  | Sdual of type_expr * type_expr
+  | Sdual of Type.t * Type.t
   (* open X *)
   | Sopen of Id.ident

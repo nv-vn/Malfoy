@@ -5,15 +5,15 @@
 * Type-level duality
   + Structural duality (i.e. given the duals `I` and `O`, the dual of `type A = I Int` is `O Int` without being declared explicitly)
 * The `-[...]` type allows for accessing the tags directly
-* ```⁣`_``` in polymorphic variants to match against an unknown tag
+* `_` in polymorphic variants to match against an unknown tag
 
 ## Session types example
 
 ```ocaml
-data Start = Start
-type Api = O Start (R [ `Ok (S [ `Status (I Bool Eps)
-                               | `Uptime (I Int  Eps)])
-                      | `Err Eps])
+type Start = [< Start]
+type Api = O Start (R [ Ok (S [ Status (I Bool Eps)
+                              | Uptime (I Int  Eps)])
+                      | Err Eps])
 
 (* `Eps` corresponds to the epsilon type (which ends a session)
    The `O` type is an "output" (i.e. sending a message), while `I` refers to "input" (receiving the message).
@@ -34,14 +34,14 @@ let client ep =
   let ep = send Start ep in
   (* branch : R ([>] as msg) -> msg *)
   match branch ep with
-  | `Ok ep ->
-    (* select : -([> `_ cont] as choice) -> S choice -> cont *)
-    let ep = select `Status ep in
+  | Ok ep ->
+    (* select : -([> _ cont] as choice) -> S choice -> cont *)
+    let ep = select Status ep in
     (* receive : I msg cont -> msg * cont *)
     let status, ep = receive ep in
     (* close : Eps -> Unit *)
     close ep
-  | `Err ep -> close ep
+  | Err ep -> close ep
   end
 ```
 
@@ -102,13 +102,13 @@ module Ref = struct
 
   val ref : a. res. a -> Ref a res
 
-  val (!) : a. Ref a [> `Read cont] -> (Ref a cont, a)
+  val (!) : a. Ref a [> Read cont] -> (Ref a cont, a)
   let (!) ref = ({value = ref.value}, ref.value)
 
-  val (:=) : a. b. Ref a [> `Write cont] -> b -> Ref b cont
+  val (:=) : a. b. Ref a [> Write cont] -> b -> Ref b cont
   let (:=) ref v = {value = v}
 
-  val (:=>) : a. b. Ref a [> `Read [> `Write cont]] -> (a -> b) -> Ref b cont
+  val (:=>) : a. b. Ref a [> Read [> Write cont]] -> (a -> b) -> Ref b cont
   let (:=>) ref f = {value = f ref.value}
 end
 ```
@@ -118,14 +118,14 @@ Now using this for a basic example:
 ```ocaml
 open Ref
 
-val r : Ref Int [`Read [`Stop] | `Write [`Read]]
+val r : Ref Int [Read [Stop] | Write [Read]]
 let r = ref 0
 
 trace r with
   let x = !r in
   r := x + 1 (* Type error:
-                  Value r : Ref Int [`Stop] does not match
-                  type Ref Int [> `Write a]. *)
+                  Value r : Ref Int [Stop] does not match
+                  type Ref Int [> Write a]. *)
 end
 ```
 
@@ -138,7 +138,7 @@ type Server = SomeServerType
 dual Client <=> Server
 
 (* Given [cospawn : (client -> Unit) -> (server -> Unit) -> Unit
-                    constraint server = Dual client] ... *)
+                    constraint server = client*] ... *)
 
 (* Server/Client arguments represent the session resource that gets consumed *)
 val myClient : Client -> Unit
@@ -149,7 +149,7 @@ let myServer = (* ... *)
 
 let () = cospawn myClient myServer
 
-(* Given [spawnPid : (process -> Unit) -> Dual process] *)
+(* Given [spawnPid : (process -> Unit) -> process*] *)
 
 let () = myServer (spawnPid myClient)
 ```
@@ -157,17 +157,16 @@ let () = myServer (spawnPid myClient)
 This duality serves in more complex tasks, such as when using session types.
 
 ```ocaml
-(* Note that, by default, [Dual] applies recursively to types, but does not change anything not declared.
-   For example, the tags of [cont] will remain the same after [Dual cont], but the types of the tags may
-   be altered by pre-existing rules: a tag [`A (I Int Eps)] will become [`A (O Int Eps)] after the duality
+(* Note that, by default, [Type*] applies recursively to types, but does not change anything not declared.
+   For example, the tags of [cont] will remain the same after [cont*], but the types of the tags may
+   be altered by pre-existing rules: a tag [A (I Int Eps)] will become [A (O Int Eps)] after the duality
    is applied. *)
-dual I msg cont <=> O msg (Dual cont)
-dual R cont <=> S (Dual cont)
+dual I msg cont <=> O msg cont*
+dual R cont <=> S cont*
 ```
 
 # Proposed syntax changes
 
-* Maybe stick with OCaml-style syntax for type names/variables, so we don't need to figure out if `type A = A` means a circular type definition or a variant type with the constructor `A`?
 * Not a fan of `-` for tag-only variants, maybe `~` or `@` or something along those lines would be better?
   + Use `'` for the tags themselves, i.e. `'Abc` is a tag. Can be an operator too?
 * It should be significantly easier to express session types/behavioural types than in other languages, but how can we get that? Type-level operators with unicode symbols might be a good start to getting more "math-y" definitions, but is that a real gain?

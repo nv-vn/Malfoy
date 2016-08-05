@@ -26,7 +26,6 @@ let rec apply_substitutions ty substs =
       | Some value -> value
       | None -> Tvar a
     end
-  | Tnamed (a, var') -> Tnamed (subst a, var')
   | Tarrow (a, b) -> Tarrow (subst a, subst b)
   | Ttuple ts -> Ttuple (List.map subst ts)
   | Tapply (a, b) -> Tapply (subst a, subst b)
@@ -40,18 +39,17 @@ let rec apply_substitutions ty substs =
   | ty -> ty
 
 let rec doesn't_occur tvar ty =
-  let any f xs = List.filter f xs |> List.length > 0 in
+  let all f = List.fold_left (fun b x -> (f x) && b) true in
   match ty with
-  | Tvar a as tvar' when tvar = tvar' -> true
-  | Tnamed (t, _) -> doesn't_occur tvar t
-  | Tarrow (a, b) -> doesn't_occur tvar a || doesn't_occur tvar b
-  | Ttuple ts -> any (doesn't_occur tvar) ts
-  | Tapply (a, b) -> doesn't_occur tvar a || doesn't_occur tvar b
-  | Tvariant row -> any (fun (_, ts) -> any (doesn't_occur tvar) ts) row.fields
+  | Tvar a as tvar' -> tvar <> tvar'
+  | Tarrow (a, b) -> doesn't_occur tvar a && doesn't_occur tvar b
+  | Ttuple ts -> all (doesn't_occur tvar) ts
+  | Tapply (a, b) -> doesn't_occur tvar a && doesn't_occur tvar b
+  | Tvariant row -> all (fun (_, ts) -> all (doesn't_occur tvar) ts) row.fields
   | Ttag t -> doesn't_occur tvar t
   | _ -> true
 
-let rec unify_rows fields1 fields2 subst expr =
+let rec unify_rows (fields1, more1) (fields2, more2) subst expr =
   let (>>=) xs f = List.map f xs |> List.flatten in
   (* Get all sets of matching tags *)
   let intersect xs ys =
@@ -65,6 +63,7 @@ let rec unify_rows fields1 fields2 subst expr =
     present_in_both >>= fun tag ->
     (* Collect the args for that tag in both sets of fields and group them in pairs *)
     let args1 = List.assoc tag fields1 and args2 = List.assoc tag fields2 in
+    if List.length args1 <> List.length args2 then assert false; (* Make sure they both have the same number of args *)
     let both = List.map2 (fun a b -> (a, b)) args1 args2 in
     (* For every pair, unify them and add them to the list of substitutions *)
     List.map
@@ -72,17 +71,20 @@ let rec unify_rows fields1 fields2 subst expr =
          (* Remove the redundant substitutions after unification *)
          unify arg1 arg2 subst expr -@ subst)
       both in
-  (* Add all the substitutions together to the substitutions being unified *)
-  List.fold_left (+@) subst common_subs
-(*
   let absent gs xs =
     List.filter (fun (tag, _) -> not @@ List.exists ((=) tag) gs) xs in
-  let left_subs = absent present_in_both fields1 |> List.map fst
-  and right_subs = absent present_in_both fields2 |> List.map fst in
-  let all = List.concat [common_subs; left_subs; right_subs] in
-  List.fold_left
-    (fun (arg1, arg2) subst ->
-      unify arg1 arg2 subst expr) subst all *)
+  let fields1' = absent present_in_both fields1
+  and fields2' = absent present_in_both fields2
+  and more' = fresh_tvar () in
+  let left = Tvariant { fields = fields1'; self = fresh_tvar ();
+                        more = more'; closed = false }
+  and right = Tvariant { fields = fields2'; self = fresh_tvar ();
+                         more = more'; closed = false } in
+  let left_subst = unify left more1 subst expr -@ subst
+  and right_subst = unify right more2 subst expr -@ subst in
+  let all = List.concat [common_subs; [left_subst]; [right_subst]] in
+  (* Add all the substitutions together to the substitutions being unified *)
+  List.fold_left (+@) subst all
 
 and unify t1 t2 subst expr =
   let t1 = apply_substitutions t1 subst
@@ -100,14 +102,9 @@ and unify t1 t2 subst expr =
   | Ttuple t1s, Ttuple t2s ->
     let ts = List.map2 (fun t1 t2 -> (t1, t2)) t1s t2s in
     List.fold_left (fun subst (t1, t2) -> unify t1 t2 subst expr) subst ts
-  (* (* How can I unify a type with row polymorphism but still intersect the types? *)
   | Tvariant row1, Tvariant row2 ->
-    let fields = List.map2 (fun field1 field2 -> (field1, field2)) row1.fields row2.fields in
-    let fields = List.map (fun ((tag1, t1s), (tag2, t2s)) ->
-                             if tag1 = tag2 then
-                               let args = List.map2 (fun arg1 arg2 -> (arg1, arg2)) t1s t2s in
-                               List.fold_left (fun subst (t1, t2) -> unify t1 t2 subst expr) subst args
-                             else subst) fields in
-    subst *)
+    unify_rows (row1.fields, row1.more) (row2.fields, row2.more) subst expr
   | Ttag t1, Ttag t2 -> unify t1 t2 subst expr
-  | _, _ -> assert false (* Can't unify types *)
+  | _, _ ->
+    print_endline (string_of_type t1 ^ " => " ^ string_of_type t2);
+    assert false (* Can't unify types *)

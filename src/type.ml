@@ -52,7 +52,7 @@ let rec string_of_type =
                        | Tname s, ts ->
                            List.fold_left (fun t a -> Tapply (t, a)) (Tconst (Id.Iident s)) ts |> string_of_type)
                fields in
-    "[" ^ if closed then "< " else "> "
+    "[" ^ (if closed then "< " else "> ")
         ^ String.concat " | " fields' ^ "]" in
   function
   | Tvar v -> v

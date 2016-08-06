@@ -77,11 +77,12 @@ let rec unify_rows (fields1, more1) (fields2, more2) subst expr =
   and fields2' = absent present_in_both fields2
   and more' = fresh_tvar () in
   let left = Tvariant { fields = fields1'; self = fresh_tvar ();
-                        more = more'; closed = false }
+                        more = more'; closed = true }
   and right = Tvariant { fields = fields2'; self = fresh_tvar ();
-                         more = more'; closed = false } in
-  let left_subst = unify left more1 subst expr -@ subst
-  and right_subst = unify right more2 subst expr -@ subst in
+                         more = more'; closed = true } in
+  (* Make sure to unify each type with the opposite! *)
+  let left_subst = unify left more2 subst expr -@ subst
+  and right_subst = unify right more1 subst expr -@ subst in
   let all = List.concat [common_subs; [left_subst]; [right_subst]] in
   (* Add all the substitutions together to the substitutions being unified *)
   List.fold_left (+@) subst all
@@ -106,5 +107,5 @@ and unify t1 t2 subst expr =
     unify_rows (row1.fields, row1.more) (row2.fields, row2.more) subst expr
   | Ttag t1, Ttag t2 -> unify t1 t2 subst expr
   | _, _ ->
-    print_endline (string_of_type t1 ^ " => " ^ string_of_type t2);
+    print_endline ("Couldn't unify types: \n" ^ string_of_type t1 ^ " and \n " ^ string_of_type t2);
     assert false (* Can't unify types *)

@@ -34,3 +34,10 @@ let fresh_tvar =
     let res = tvar_of_int !next in
     next := !next + 1;
     res
+
+let rec string_of_subst = function
+  | EmptySubst -> ""
+  | ExtendSubst (EmptySubst, t1, t2) ->
+    Type.string_of_type t1 ^ " => " ^ Type.string_of_type t2
+  | ExtendSubst (s, t1, t2) ->
+    Type.string_of_type t1 ^ " => " ^ Type.string_of_type t2 ^ "\n" ^ string_of_subst s

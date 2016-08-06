@@ -1,6 +1,7 @@
 open Id
 open Ast
 open Type
+open Util
 open Substs
 open Type_env
 
@@ -10,13 +11,6 @@ let char = !!(Iident "Char")
 and string = !!(Iident "String")
 and int = !!(Iident "Int")
 and float = !!(Iident "Float")
-
-let type_of_literal lit =
-  match lit with
-  | Lchar _ -> char
-  | Lstring _ -> string
-  | Lint _ -> int
-  | Lfloat _ -> float
 
 let rec apply_substitutions ty substs =
   let subst ty = apply_substitutions ty substs in
@@ -50,7 +44,6 @@ let rec doesn't_occur tvar ty =
   | _ -> true
 
 let rec unify_rows (fields1, more1) (fields2, more2) subst expr =
-  let (>>=) xs f = List.map f xs |> List.flatten in
   (* Get all sets of matching tags *)
   let intersect xs ys =
     let xtags = List.map fst xs
@@ -109,3 +102,16 @@ and unify t1 t2 subst expr =
   | _, _ ->
     print_endline ("Couldn't unify types: \n" ^ string_of_type t1 ^ " and \n " ^ string_of_type t2);
     assert false (* Can't unify types *)
+
+let type_of_literal lit =
+  match lit with
+  | Lchar _ -> char
+  | Lstring _ -> string
+  | Lint _ -> int
+  | Lfloat _ -> float
+
+let rec type_of_expr expr subst = match expr with
+  | Eliteral (l, _) -> type_of_literal l
+  | Eident (id, _) -> unsafe_get (scope#lookup id)
+  | Etuple (ts, _) -> Ttuple (List.map (type_of_expr subst) ts)
+  | _ -> Tvar "a"

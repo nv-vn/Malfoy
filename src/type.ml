@@ -44,6 +44,11 @@ let hash_variant s =
   (* make it signed for 64 bits architectures *)
   if !accu > 0x3FFFFFFF then !accu - (1 lsl 31) else !accu
 
+let rec simplify_variant = function
+  | {more = Tvariant more} as row ->
+    {row with fields = row.fields @ more.fields}
+  | {more = _} as row -> row
+
 let rec string_of_type =
   let string_of_row {fields; closed} =
     let fields' =
@@ -60,7 +65,7 @@ let rec string_of_type =
   | Tarrow (t, u) -> string_of_type t ^ " -> " ^ string_of_type u
   | Ttuple ts -> "(" ^ (List.map string_of_type ts |> String.concat ", ") ^ ")"
   | Tapply (t, u) -> string_of_type t ^ " " ^ string_of_type u
-  | Tvariant row -> string_of_row row
+  | Tvariant row -> string_of_row (simplify_variant row)
   | Ttag (Tvariant _ as var) -> "-" ^ string_of_type var
   | Ttag other -> "-(" ^ string_of_type other ^ ")"
   | Tdual t -> string_of_type t ^ "*"

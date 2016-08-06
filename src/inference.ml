@@ -28,7 +28,8 @@ let rec apply_substitutions ty substs =
               fields =
                 List.map (fun (tag, ts) ->
                            (tag, List.map subst ts))
-                  row.fields}
+                  row.fields;
+              more = subst row.more}
   | Ttag t -> subst t
   | ty -> ty
 

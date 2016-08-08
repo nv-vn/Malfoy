@@ -111,8 +111,24 @@ let type_of_literal lit =
   | Lint _ -> int
   | Lfloat _ -> float
 
-let rec type_of_expr expr subst = match expr with
+let rec type_of_expr scope = function
   | Eliteral (l, _) -> type_of_literal l
   | Eident (id, _) -> unsafe_get (scope#lookup id)
-  | Etuple (ts, _) -> Ttuple (List.map (type_of_expr subst) ts)
+  | Etuple (ts, _) -> Ttuple (List.map (type_of_expr scope) ts)
+  | Evariant (tag, args, _) ->
+    let arg_ts = List.map (type_of_expr scope) args in
+    Tvariant { fields = [tag, arg_ts]
+             ; self = fresh_tvar ()
+             ; more = fresh_tvar ()
+             ; closed = false (* Open by default? *)
+             }
+  | Eapply (f, x, _) -> begin
+      match type_of_expr scope f with
+      | Tarrow (a, b) -> b (* Assume x : b *)
+      | _ -> assert false (* Can't apply to something other than a function... unless f : Tvar _ ? *)
+    end
+  | Efun (pat, e, _) -> Tarrow (type_of_pattern pat, type_of_expr scope e)
+  | _ -> Tvar "a"
+
+and type_of_pattern = function
   | _ -> Tvar "a"

@@ -20,7 +20,7 @@ type pattern =
   (* x, y, z *)
   | Ptuple of pattern list * Type.t option
   (* Hi a b c *)
-  | Pvariant of variant_hash * pattern list * Type.t option
+  | Pvariant of Type.tag * pattern list * Type.t option
 
 type expr =
   (* 'a' *)
@@ -30,7 +30,7 @@ type expr =
   (* 1, 2, 3 *)
   | Etuple of expr list * Type.t option
   (* Hi 1 2 3 *)
-  | Evariant of variant_hash * expr list * Type.t option
+  | Evariant of Type.tag * expr list * Type.t option
   (* f 1 2 3 *)
   | Eapply of expr * expr * Type.t option
   (* \x -> x *)

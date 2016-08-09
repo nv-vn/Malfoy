@@ -127,8 +127,22 @@ let rec type_of_expr scope = function
       | Tarrow (a, b) -> b (* Assume x : b *)
       | _ -> assert false (* Can't apply to something other than a function... unless f : Tvar _ ? *)
     end
-  | Efun (pat, e, _) -> Tarrow (type_of_pattern pat, type_of_expr scope e)
-  | _ -> Tvar "a"
+  | Efun (pat, e, _) ->
+    List.fold_right (fun pat t -> Tarrow (type_of_pattern pat, t)) pat (type_of_expr scope e)
+  | _ -> fresh_tvar ()
 
 and type_of_pattern = function
-  | _ -> Tvar "a"
+  | Pwildcard (Some t) -> t
+  | Pwildcard None -> fresh_tvar ()
+  | Pliteral (l, _) -> type_of_literal l
+  | Pident (_, Some t) -> t
+  | Pident (_, None) -> fresh_tvar ()
+  | Ptuple (ts, _) -> Ttuple (List.map type_of_pattern ts)
+  | Pvariant (tag, args, _) ->
+    let arg_ts = List.map type_of_pattern args in
+    Tvariant { fields = [tag, arg_ts]
+             ; self = fresh_tvar ()
+             ; more = fresh_tvar ()
+             ; closed = false
+             }
+  | _ -> fresh_tvar ()

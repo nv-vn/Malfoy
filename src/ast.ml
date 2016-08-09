@@ -8,8 +8,6 @@ type literal =
   (* 1.5 *)
   | Lfloat of float
 
-type variant_hash = int
-
 type pattern =
   (* _ *)
   | Pwildcard of Type.t option

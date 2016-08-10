@@ -111,25 +111,49 @@ let type_of_literal lit =
   | Lint _ -> int
   | Lfloat _ -> float
 
-let rec type_of_expr scope = function
-  | Eliteral (l, _) -> type_of_literal l
-  | Eident (id, _) -> unsafe_get (scope#lookup id)
-  | Etuple (ts, _) -> Ttuple (List.map (type_of_expr scope) ts)
+let get_expr_type = function
+  | Eliteral (_, Some t) | Eident (_, Some t) | Etuple (_, Some t)
+  | Evariant (_, _, Some t) | Eapply (_, _, Some t) | Efun (_, _, Some t)
+  | Ematch (_, _, Some t) | Ebind (_, _, _, Some t)
+    -> t
+  | _ -> assert false
+
+let rec type_fold subst scope exprs =
+  let rec loop ts = function
+    | [], subst -> ts, subst
+    | x::xs, subst ->
+      let t, subst' = type_of_expr subst scope x in
+      loop ([t]@ts) (xs, subst') in
+  loop [] (exprs, subst)
+
+and type_of_expr subst scope = function
+  | Eliteral (l, _) -> type_of_literal l, subst
+  | Eident (id, _) -> unsafe_get (scope#lookup id), subst
+  | Etuple (xs, _) ->
+    let ts, subst = type_fold subst scope xs in
+    Ttuple ts, subst
   | Evariant (tag, args, _) ->
-    let arg_ts = List.map (type_of_expr scope) args in
+    let arg_ts, subst = type_fold subst scope args in
     Tvariant { fields = [tag, arg_ts]
              ; self = fresh_tvar ()
              ; more = fresh_tvar ()
              ; closed = false (* Open by default? *)
-             }
+             }, subst
   | Eapply (f, x, _) -> begin
-      match type_of_expr scope f with
-      | Tarrow (a, b) -> b (* Assume x : b *)
-      | _ -> assert false (* Can't apply to something other than a function... unless f : Tvar _ ? *)
+      match type_of_expr subst scope f with
+      | Tarrow (a, b), subst ->
+        let subst = unify (get_expr_type x) a subst x in
+        b, subst
+      | t, subst ->
+        let a = fresh_tvar () and b = fresh_tvar () in
+        let subst = unify (Tarrow (a, b)) t subst f in
+        let subst = unify (get_expr_type x) a subst x in
+        b, subst
     end
   | Efun (pat, e, _) ->
-    List.fold_right (fun pat t -> Tarrow (type_of_pattern pat, t)) pat (type_of_expr scope e)
-  | _ -> fresh_tvar ()
+    let e_ts, subst = type_of_expr subst scope e in
+    List.fold_right (fun pat t -> Tarrow (type_of_pattern pat, t)) pat e_ts, subst
+  | _ -> fresh_tvar (), subst
 
 and type_of_pattern = function
   | Pwildcard (Some t) -> t

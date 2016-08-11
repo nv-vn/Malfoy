@@ -36,7 +36,7 @@ type expr =
   (* match x with [x] -> x | [] -> 0 *)
   | Ematch of expr * (pattern * expr) list * Type.t option
   (* let x = y in x *)
-  | Ebind of string * expr * expr * Type.t option
+  | Ebind of pattern * expr * expr * Type.t option
 
 type stmt =
   (* do e end *)

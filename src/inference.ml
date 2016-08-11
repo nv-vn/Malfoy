@@ -118,7 +118,7 @@ let get_expr_type = function
     -> t
   | _ -> assert false
 
-let rec type_fold subst scope exprs =
+let rec type_map subst scope exprs =
   let rec loop ts = function
     | [], subst -> ts, subst
     | x::xs, subst ->
@@ -126,14 +126,41 @@ let rec type_fold subst scope exprs =
       loop ([t]@ts) (xs, subst') in
   loop [] (exprs, subst)
 
+and type_of_pattern = function
+  | Pwildcard (Some t) -> t
+  | Pwildcard None -> fresh_tvar ()
+  | Pliteral (l, _) -> type_of_literal l
+  | Pident (_, Some t) -> t
+  | Pident (_, None) -> fresh_tvar ()
+  | Ptuple (ts, _) -> Ttuple (List.map type_of_pattern ts)
+  | Pvariant (tag, args, _) ->
+    let arg_ts = List.map type_of_pattern args in
+    Tvariant { fields = [tag, arg_ts]
+             ; self = fresh_tvar ()
+             ; more = fresh_tvar ()
+             ; closed = false
+             }
+  | _ -> fresh_tvar ()
+
+and bind_pattern scope = function
+  | Pident (x, Some t) ->
+    scope#register x t
+  | Pident (x, None) ->
+    scope#register x (fresh_tvar ())
+  | Ptuple (ts, _) ->
+    List.iter (bind_pattern scope) ts
+  | Pvariant (_, args, _) ->
+    List.iter (bind_pattern scope) args
+  | _ -> ()
+
 and type_of_expr subst scope = function
   | Eliteral (l, _) -> type_of_literal l, subst
   | Eident (id, _) -> unsafe_get (scope#lookup id), subst
   | Etuple (xs, _) ->
-    let ts, subst = type_fold subst scope xs in
+    let ts, subst = type_map subst scope xs in
     Ttuple ts, subst
   | Evariant (tag, args, _) ->
-    let arg_ts, subst = type_fold subst scope args in
+    let arg_ts, subst = type_map subst scope args in
     Tvariant { fields = [tag, arg_ts]
              ; self = fresh_tvar ()
              ; more = fresh_tvar ()
@@ -153,20 +180,26 @@ and type_of_expr subst scope = function
   | Efun (pat, e, _) ->
     let e_ts, subst = type_of_expr subst scope e in
     List.fold_right (fun pat t -> Tarrow (type_of_pattern pat, t)) pat e_ts, subst
+  | Ematch (x, pats, _) as m -> begin
+      let x_t = get_expr_type x
+      and t = fresh_tvar () in
+      let rec loop = function
+        | [], subst -> subst
+        | (pat, e)::branches, subst ->
+          scope#enter_scope;
+          bind_pattern scope pat;
+          let subst = unify (type_of_pattern pat) x_t subst x in
+          let e_t, subst = type_of_expr subst scope e in
+          let subst = unify e_t t subst m in
+          scope#leave_scope;
+          loop (branches, subst) in
+      let subst = loop (pats, subst) in
+      t, subst
+    end
+  | Ebind (pat, e, ctx, _) ->
+    scope#enter_scope;
+    bind_pattern scope pat; (* TODO: unify with type_of e *)
+    let t, subst = type_of_expr subst scope ctx in
+    scope#leave_scope;
+    t, subst
   | _ -> fresh_tvar (), subst
-
-and type_of_pattern = function
-  | Pwildcard (Some t) -> t
-  | Pwildcard None -> fresh_tvar ()
-  | Pliteral (l, _) -> type_of_literal l
-  | Pident (_, Some t) -> t
-  | Pident (_, None) -> fresh_tvar ()
-  | Ptuple (ts, _) -> Ttuple (List.map type_of_pattern ts)
-  | Pvariant (tag, args, _) ->
-    let arg_ts = List.map type_of_pattern args in
-    Tvariant { fields = [tag, arg_ts]
-             ; self = fresh_tvar ()
-             ; more = fresh_tvar ()
-             ; closed = false
-             }
-  | _ -> fresh_tvar ()

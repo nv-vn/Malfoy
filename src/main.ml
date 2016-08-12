@@ -25,7 +25,7 @@ let () =
                     } in
   let subst =
     let open Type in
-    Inference.unify t1 t2 Substs.EmptySubst Ast.(Eliteral (Lchar 'a', None)) in
+    Inference.unify t1 t2 Substs.EmptySubst in
   print_endline ("Unifying types: " ^ string_of_type t1 ^ " and " ^ string_of_type t2);
   print_endline ("Found substitutions:\n" ^ Substs.string_of_subst subst);
   print_endline ("Got type: " ^ string_of_type (Inference.apply_substitutions t1 subst))

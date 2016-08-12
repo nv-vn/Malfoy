@@ -1,67 +1,53 @@
-open Type
+type env = EmptyEnv | ExtendEnv of env * Id.ident * Type.t
 
-type generation =
-  | Genesis
-  | Grow of generation * (Id.ident, Type.t) Hashtbl.t
+let rec lookup env id =
+  match env with
+  | EmptyEnv -> None
+  | ExtendEnv (_, id', ty)
+    when id = id' -> Some ty
+  | ExtendEnv (env, _, _) -> lookup env id
 
-class env initial = object (self)
-  val mutable store = Hashtbl.create 100
-  val mutable restore = Genesis
-  val mutable uniq = "a"
+let rec unsafe_lookup env id =
+  match lookup env id with
+  | None ->
+    print_endline @@ "Value `" ^ Id.string_of_ident id ^ "' is unbound in this environment";
+    assert false
+  | Some ty -> ty
 
-  method lookup ident =
-    if Hashtbl.mem store ident then
-      Some (Hashtbl.find store ident)
-    else
-      None
+let rec env_diff a b = match a, b with
+  | EmptyEnv, _ -> EmptyEnv
+  | a, EmptyEnv -> a
+  | ExtendEnv (a, id, t), b when a = b -> ExtendEnv (EmptyEnv, id, t)
+  | ExtendEnv (a, id, t) as sa, ExtendEnv (b, _, _) -> ExtendEnv (env_diff a b, id, t)
 
-  method enter_scope =
-    restore <- Grow (restore, Hashtbl.copy store)
+let rec env_join a b = match a with
+  | EmptyEnv -> b
+  | ExtendEnv (a, id, t) -> ExtendEnv (env_join a b, id, t)
 
-  method leave_scope =
-    match restore with
-    | Genesis ->
-      Hashtbl.clear store
-    | Grow (last, g) -> begin
-        restore <- last;
-        store <- g
-      end
+let (-!) = env_diff and (+!) = env_join
 
-  method register name ty =
-    Hashtbl.add store name ty
+let rec string_of_env = function
+  | EmptyEnv -> ""
+  | ExtendEnv (EmptyEnv, id, t) ->
+    Id.string_of_ident id ^ " => " ^ Type.string_of_type t
+  | ExtendEnv (e, id, t) ->
+    Id.string_of_ident id ^ " => " ^ Type.string_of_type t ^ "\n" ^ string_of_env e
 
-  method register_unique ?(prefix="") ty =
-    let next_uniq () =
-      match uniq.[String.length uniq - 1] with
-      | 'a' .. 'y' as c ->
-        let last' = Char.chr (Char.code c + 1) in
-        uniq.[String.length uniq - 1] <- last'
-      | _ -> uniq <- uniq ^ "a" in
-    let name = prefix ^ uniq in
-    self#register (Id.Iident name) ty;
-    next_uniq ();
-    name
-
-  method clone = {< >}
-
-  initializer
-    for i = 0 to Array.length initial - 1 do
-      match initial.(i) with
-      | (ident, ty) -> Hashtbl.add store ident ty
-    done;
-    restore <- Grow (restore, Hashtbl.copy store)
-end
+let rec env_of_list ?(env = EmptyEnv) = function
+  | [] -> env
+  | (id, t)::defs -> env_of_list ~env:(ExtendEnv (env, id, t)) defs
 
 let default =
+  let open Type in
   let int = !!(Id.Iident "Int")
   and string = !!(Id.Iident "String")
   and unit = !!(Id.Iident "()")
   and list a =
     Tapply (!!(Id.Iident "list"), a) in
-  [| Id.Iident "::", ??"a" @-> list ??"a" @-> list ??"a"
-  ;  Id.Iident "+", int @-> int @-> int
-  ;  Id.Iident "-", int @-> int @-> int
-  ;  Id.Iident "*", int @-> int @-> int
-  ;  Id.Iident "/", int @-> int @-> int
-  ;  Id.Iident "print", string @-> unit
-  |]
+  [ Id.Iident "::", ??"a" @-> list ??"a" @-> list ??"a"
+  ; Id.Iident "+", int @-> int @-> int
+  ; Id.Iident "-", int @-> int @-> int
+  ; Id.Iident "*", int @-> int @-> int
+  ; Id.Iident "/", int @-> int @-> int
+  ; Id.Iident "print", string @-> unit
+  ]

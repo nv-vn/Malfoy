@@ -10,39 +10,39 @@ type literal =
 
 type pattern =
   (* _ *)
-  | Pwildcard of Type.t option
+  | Pwildcard of Type.t
   (* 1 *)
-  | Pliteral of literal * Type.t option
+  | Pliteral of literal * Type.t
   (* x *)
-  | Pident of string * Type.t option
+  | Pident of string * Type.t
   (* x, y, z *)
-  | Ptuple of pattern list * Type.t option
+  | Ptuple of pattern list * Type.t
   (* Hi a b c *)
-  | Pvariant of Type.tag * pattern list * Type.t option
+  | Pvariant of Type.tag * pattern list * Type.t
 
 type expr =
   (* 'a' *)
-  | Eliteral of literal * Type.t option
+  | Eliteral of literal * Type.t
   (* abc *)
-  | Eident of Id.ident * Type.t option
+  | Eident of Id.ident * Type.t
   (* 1, 2, 3 *)
-  | Etuple of expr list * Type.t option
+  | Etuple of expr list * Type.t
   (* Hi 1 2 3 *)
-  | Evariant of Type.tag * expr list * Type.t option
+  | Evariant of Type.tag * expr list * Type.t
   (* f 1 2 3 *)
-  | Eapply of expr * expr * Type.t option
+  | Eapply of expr * expr * Type.t
   (* \x -> x *)
-  | Efun of pattern list * expr * Type.t option
+  | Efun of pattern list * expr * Type.t
   (* match x with [x] -> x | [] -> 0 *)
-  | Ematch of expr * (pattern * expr) list * Type.t option
+  | Ematch of expr * (pattern * expr) list * Type.t
   (* let x = y in x *)
-  | Ebind of pattern * expr * expr * Type.t option
+  | Ebind of pattern * expr * expr * Type.t
 
 type stmt =
   (* do e end *)
   | Sexec of expr
   (* let x = y *)
-  | Sbind of string * expr * Type.t option
+  | Sbind of string * expr * Type.t
   (* type T = S *)
   | Stype of string * Type.t
   (* dual T <=> S *)

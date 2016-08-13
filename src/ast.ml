@@ -32,7 +32,7 @@ type expr =
   (* f 1 2 3 *)
   | Eapply of expr * expr * Type.t
   (* \x -> x *)
-  | Efun of pattern list * expr * Type.t
+  | Efun of pattern * expr * Type.t
   (* match x with [x] -> x | [] -> 0 *)
   | Ematch of expr * (pattern * expr) list * Type.t
   (* let x = y in x *)

@@ -127,14 +127,79 @@ let rec type_of_pattern = function
              ; more = fresh_tvar ()
              ; closed = false
              }
-  | _ -> fresh_tvar ()
 
-let rec collect_substs subst env = function
+let rec bind_patterns env = function
+  | Pident (id, t) -> ExtendEnv (env, Id.Iident id, t)
+  | Ptuple (ps, _) -> List.fold_left bind_patterns env ps
+  | Pvariant (_, args, _) -> List.fold_left bind_patterns env args
+  | _ -> env
+
+let rec collect_substitutions subst env = function
   | Eliteral (l, t) ->
     unify t (type_of_literal l) subst
   | Eident (id, t) ->
     unify t (unsafe_lookup env id) subst
   | Etuple (es, t) ->
     let ts = List.map get_expr_type es in
-    unify t (Ttuple ts) subst
-  | _ -> subst
+    let subst' = List.fold_left (fun subst e -> collect_substitutions subst env e) subst es in
+    unify t (Ttuple ts) subst'
+  | Evariant (tag, args, t) ->
+    let arg_ts = List.map get_expr_type args in
+    let subst' = List.fold_left (fun subst e -> collect_substitutions subst env e) subst args in
+    let var = Tvariant { fields = [tag, arg_ts]
+                       ; self = fresh_tvar ()
+                       ; more = fresh_tvar ()
+                       ; closed = true (* TODO: What is the "sane default" here? *)
+                       } in
+    unify t var subst'
+  | Eapply (f, x, t) -> begin
+      let f_t = get_expr_type f
+      and x_t = get_expr_type x in
+      let subst_f = collect_substitutions subst env f in
+      let subst_x = collect_substitutions subst_f env x in
+      match apply_substitutions f_t subst_x with
+      | Tarrow (a, b) ->
+        let subst' = unify a x_t subst in
+        unify t b subst'
+      | _ ->
+        print_endline "Could not unify function application";
+        assert false
+    end
+  | Efun (pat, e, t) ->
+    let env' = bind_patterns env pat in
+    let subst' = collect_substitutions subst env' e in
+    unify t (Tarrow (type_of_pattern pat, get_expr_type e)) subst'
+  | Ematch (x, branches, t) ->
+    let x_t = get_expr_type x in
+    List.fold_left
+      (fun subst (pat, e) ->
+         let subst' = unify x_t (type_of_pattern pat) subst in
+         let env' = bind_patterns env pat in
+         let subst'' = collect_substitutions subst' env' e in
+         unify t (get_expr_type e) subst'') subst branches
+  | Ebind (pat, e, ctx, t) ->
+    let env' = bind_patterns env pat in
+    let subst_e = collect_substitutions subst env' e in (* TODO: is env' correct here? Should allow recursion *)
+    let subst_ctx = collect_substitutions subst_e env' ctx in
+    unify t (get_expr_type ctx) subst_ctx
+
+let infer_types ?(subst=EmptySubst) ?(env=EmptyEnv) e =
+  let subst' = collect_substitutions subst env e in
+  let rec apply_pat = function
+    | Pwildcard t -> Pwildcard (apply_substitutions t subst')
+    | Pliteral (l, t) -> Pliteral (l, apply_substitutions t subst')
+    | Pident (s, t) -> Pident (s, apply_substitutions t subst')
+    | Ptuple (pats, t) -> Ptuple (List.map apply_pat pats, apply_substitutions t subst')
+    | Pvariant (tag, args, t) -> Pvariant (tag, List.map apply_pat args, apply_substitutions t subst') in
+  let rec apply = function
+    | Eliteral (l, t) -> Eliteral (l, apply_substitutions t subst')
+    | Eident (id, t) -> Eident (id, apply_substitutions t subst')
+    | Etuple (es, t) -> Etuple (List.map apply es, apply_substitutions t subst')
+    | Evariant (tag, args, t) -> Evariant (tag, List.map apply args, apply_substitutions t subst')
+    | Eapply (f, x, t) -> Eapply (apply f, apply x, apply_substitutions t subst')
+    | Efun (pat, e, t) -> Efun (apply_pat pat, apply e, apply_substitutions t subst')
+    | Ematch (x, branches, t) ->
+      let apply_branch (pat, e) = (apply_pat pat, apply e) in
+      Ematch (apply x, List.map apply_branch branches, apply_substitutions t subst')
+    | Ebind (pat, e, ctx, t) -> Ebind (apply_pat pat, apply e, apply ctx, apply_substitutions t subst')
+  in apply e

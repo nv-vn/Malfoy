@@ -13,3 +13,4 @@ Executable "malfoy"
   MainIs: main.ml
   CompiledObject: best
   BuildDepends: malfunction, compiler-libs.common
+  BuildTools+: ocamllex, ocamlyacc

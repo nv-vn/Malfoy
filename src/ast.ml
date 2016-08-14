@@ -40,9 +40,9 @@ type expr =
 
 type stmt =
   (* do e end *)
-  | Sexec of expr
+  | Sexec of expr list
   (* let x = y *)
-  | Sbind of string * expr * Type.t
+  | Sbind of pattern * expr * Type.t
   (* type T = S *)
   | Stype of string * Type.t
   (* dual T <=> S *)

@@ -1,4 +1,5 @@
 open Ast
+open Type
 open Substs
 
 let ast_of_literal = function
@@ -42,6 +43,7 @@ let rec map_expr f = function
   | `Ematch (x, branches, t) -> `Ematch (f x, List.map (fun (p, e) -> (p, f e)) branches, t)
   | `Ebind (pat, e, ctx, t) -> `Ebind (pat, f e, f ctx, t)
   | `Eif (x, i, e, t) -> `Eif (f x, f i, f e, t)
+  | `Ebegin (es, t) -> `Ebegin (List.map f es, t)
   | expr -> expr
 
 let rec expand_if = function
@@ -50,8 +52,16 @@ let rec expand_if = function
                 ; `Evariant ("False", [], fresh_tvar ()), e], t)
   | expr -> map_expr expand_if expr
 
+let rec expand_begin = function
+  | `Ebegin ([], t) -> assert false (* Can't expand empty expressions *)
+  | `Ebegin ([e], t) -> e
+  | `Ebegin (e::es, t) ->
+    let rest = `Ebegin (es, t) in
+    `Ebind (`Pwildcard (fresh_tvar ()), map_expr expand_begin e, expand_begin rest, t)
+  | expr -> map_expr expand_begin expr
+
 let desugar statements =
-  let expr_passes e = expand_if e in
+  let expr_passes e = expand_begin (expand_if e) in
   let statements' =
     List.map (function `Sexec e ->
                        `Sexec (List.map expr_passes e)

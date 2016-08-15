@@ -29,7 +29,7 @@ let (-!) = env_diff and (+!) = env_join
 let rec string_of_env = function
   | EmptyEnv -> ""
   | ExtendEnv (EmptyEnv, id, t) ->
-    Id.string_of_ident id ^ " => " ^ Type.string_of_type t
+    Id.string_of_ident id ^ " : " ^ Type.string_of_type t
   | ExtendEnv (e, id, t) ->
     Id.string_of_ident id ^ " => " ^ Type.string_of_type t ^ "\n" ^ string_of_env e
 

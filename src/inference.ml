@@ -15,7 +15,7 @@ let rec apply_substitutions ty substs =
   match ty with
   | Tvar a as tvar -> begin
       match find_subst substs tvar with
-      | Some value -> value
+      | Some value -> subst value
       | None -> Tvar a
     end
   | Tarrow (a, b) -> Tarrow (subst a, subst b)
@@ -28,7 +28,8 @@ let rec apply_substitutions ty substs =
                            (tag, List.map subst ts))
                   row.fields;
               more = subst row.more}
-  | Ttag t -> subst t
+  | Ttag t -> Ttag (subst t)
+  | Tdual t -> Tdual (subst t)
   | ty -> ty
 
 let rec doesn't_occur tvar ty =
@@ -99,7 +100,7 @@ and unify t1 t2 subst =
     unify_rows (row1.fields, row1.more) (row2.fields, row2.more) subst
   | Ttag t1, Ttag t2 -> unify t1 t2 subst
   | _, _ ->
-    print_endline ("Couldn't unify types: \n" ^ string_of_type t1 ^ " and \n " ^ string_of_type t2);
+    print_endline ("Couldn't unify types: \n  " ^ string_of_type t1 ^ "\nand\n  " ^ string_of_type t2);
     assert false (* Can't unify types *)
 
 let type_of_literal lit =
@@ -115,6 +116,7 @@ let get_expr_type = function
   | Ematch (_, _, t) | Ebind (_, _, _, t)
     -> t
 
+(* TODO: Should this perform some unification? Should it just return the assigned type? *)
 let rec type_of_pattern = function
   | Pwildcard t -> t
   | Pliteral (l, _) -> type_of_literal l
@@ -159,7 +161,7 @@ let rec collect_substitutions subst env = function
       let subst_x = collect_substitutions subst_f env x in
       match apply_substitutions f_t subst_x with
       | Tarrow (a, b) ->
-        let subst' = unify a x_t subst in
+        let subst' = unify a x_t subst_x in
         unify t b subst'
       | _ ->
         print_endline "Could not unify function application";
@@ -176,10 +178,12 @@ let rec collect_substitutions subst env = function
          let subst' = unify x_t (type_of_pattern pat) subst in
          let env' = bind_patterns env pat in
          let subst'' = collect_substitutions subst' env' e in
-         unify t (get_expr_type e) subst'') subst branches
+         unify t (get_expr_type e) subst'')
+      subst branches
   | Ebind (pat, e, ctx, t) ->
+    let subst' = unify (get_expr_type e) (type_of_pattern pat) subst in
     let env' = bind_patterns env pat in
-    let subst_e = collect_substitutions subst env' e in (* TODO: is env' correct here? Should allow recursion *)
+    let subst_e = collect_substitutions subst' env' e in (* TODO: is env' correct here? Should allow recursion *)
     let subst_ctx = collect_substitutions subst_e env' ctx in
     unify t (get_expr_type ctx) subst_ctx
 

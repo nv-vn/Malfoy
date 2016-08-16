@@ -28,7 +28,7 @@ let rec ast_of_expr = function
   | _ -> assert false (* Remeber, we're feeding in types from nanopasses *)
 
 let ast_of_stmt = function
-  | `Sexec e -> Sexec (List.map ast_of_expr e)
+  | `Sexec e -> Sexec (ast_of_expr e)
   | `Sbind (pat, e, t) -> Sbind (ast_of_pattern pat, ast_of_expr e, t)
   | `Stype (s, t) -> Stype (s, t)
   | `Sdual (t1, t2) -> Sdual (t1, t2)
@@ -46,12 +46,31 @@ let rec map_expr f = function
   | `Ebegin (es, t) -> `Ebegin (List.map f es, t)
   | expr -> expr
 
+(* Expands
+     if x then y else z
+   to
+     match x with
+     | True -> y
+     | False -> z *)
 let rec expand_if = function
   | `Eif (x, i, e, t) ->
     `Ematch (x, [ `Evariant ("True",  [], fresh_tvar ()), i
                 ; `Evariant ("False", [], fresh_tvar ()), e], t)
   | expr -> map_expr expand_if expr
 
+
+(* Expands
+     begin
+       e1;
+       e2;
+       ...;
+       en
+     end
+   to
+     let _ = e1 in
+     let _ = e2 in
+     let _ = ... in
+     en *)
 let rec expand_begin = function
   | `Ebegin ([], t) -> assert false (* Can't expand empty expressions *)
   | `Ebegin ([e], t) -> e
@@ -60,11 +79,28 @@ let rec expand_begin = function
     `Ebind (`Pwildcard (fresh_tvar ()), map_expr expand_begin e, expand_begin rest, t)
   | expr -> map_expr expand_begin expr
 
+(* Expands
+     val f : a -> a
+     let f = \x -> x
+   to
+     let f : a -> a = \x -> x *)
+let rec expand_vals = function
+  | [] -> []
+  | (`Sval (id1, t1))::(`Sbind (id2, e, t2))::rest ->
+    if id1 = id2 then
+      (`Sbind (id1, e, t1))::(expand_vals rest)
+    else begin
+      print_endline "Unmatched top-level val/let statements!";
+      assert false
+    end
+  | stmt::rest -> stmt::(expand_vals rest)
+
 let desugar statements =
+  let statements = expand_vals statements in
   let expr_passes e = expand_begin (expand_if e) in
   let statements' =
     List.map (function `Sexec e ->
-                       `Sexec (List.map expr_passes e)
+                       `Sexec (expr_passes e)
                      | `Sbind (pat, e, t) ->
                        `Sbind (pat, expr_passes e, t)
                      | stmt -> stmt) statements in

@@ -37,8 +37,12 @@ let () =
            Efun (Pident ("x", fresh_tvar ()),
                  Eident (Id.Iident "x", fresh_tvar ()),
                  fresh_tvar ()),
-           Eapply (Eident (Id.Iident "f", fresh_tvar ()),
-                   Eliteral (Lint 0, fresh_tvar ()),
+           Etuple ([Eapply (Eident (Id.Iident "f", fresh_tvar ()),
+                            Eliteral (Lint 0, fresh_tvar ()),
+                            fresh_tvar ());
+                    Eapply (Eident (Id.Iident "f", fresh_tvar ()),
+                            Eliteral (Lchar 'a', fresh_tvar ()),
+                            fresh_tvar ())],
                    fresh_tvar ()),
            fresh_tvar ()) in
   match Inference.infer_types example_ast with

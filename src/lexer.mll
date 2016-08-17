@@ -21,6 +21,32 @@ rule token = parse
       { INT (int_of_string digits) }
   | digit+ '.' digit* as f | '.' digits+ as f
       { FLOAT (float_of_string f) }
+  | "type"
+      { TYPE }
+  | "dual"
+      { DUAL }
+  | "open"
+      { OPEN }
+  | "let"
+      { LET }
+  | "in"
+      { IN }
+  | "do"
+      { DO }
+  | "begin"
+      { BEGIN }
+  | "match"
+      { MATCH }
+  | "with"
+      { WITH }
+  | "end"
+      { END }
+  | "if"
+      { IF }
+  | "then"
+      { THEN }
+  | "else"
+      { ELSE }
   | lower_ident as l
       { LIDENT l }
   | upper_ident as u

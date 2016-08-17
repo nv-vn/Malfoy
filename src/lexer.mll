@@ -27,6 +27,8 @@ rule token = parse
       { DUAL }
   | "open"
       { OPEN }
+  | "val"
+      { VAL }
   | "let"
       { LET }
   | "in"
@@ -35,6 +37,8 @@ rule token = parse
       { DO }
   | "begin"
       { BEGIN }
+  | "trace"
+      { TRACE }
   | "match"
       { MATCH }
   | "with"

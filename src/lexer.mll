@@ -12,9 +12,19 @@ rule token = parse
   | [' ' '\t' '\n' '\r']
       { token lexbuf }
   | "--"
-      inline_comment lexbuf
+      { inline_comment lexbuf }
   | "{*"
-      comment 0 lexbuf
+      { comment 0 lexbuf }
+  | '"'
+      { string_literal ~escaped:false ~str:"" lexbuf }
+  | digit+ as digits
+      { INT (int_of_string digits) }
+  | digit+ '.' digit* as f | '.' digits+ as f
+      { FLOAT (float_of_string f) }
+  | lower_ident as l
+      { LIDENT l }
+  | upper_ident as u
+      { UIDENT u }
 
 and comment depth = parse
   | "{*"
@@ -32,3 +42,27 @@ and inline_comment = parse
       { token lexbuf }
   | _
       { inline_comment lexbuf }
+
+and string_literal ~escaped ~str = parse
+  | '\\'
+      { if not escaped then
+          string_literal ~escaped:true ~str lexbuf
+        else
+          string_literal ~escaped:false ~str:(str ^ "\\") lexbuf }
+  | '"'
+      { if not escaped then
+          STRING str
+        else
+          string_literal ~escaped:false ~str:(str ^ "\"") lexbuf }
+  | c
+      { if not escaped then
+          string_literal ~escaped ~str:(str ^ c) lexbuf
+        else
+          let escape = function
+            | 't' -> "\t"
+            | 'r' -> "\r"
+            | 'n' -> "\n"
+            | _ ->
+              print_endline "Encountered unknown escape code in string!";
+              assert false in
+          string_literal ~escaped ~str:(str ^ escaped c) lexbuf }

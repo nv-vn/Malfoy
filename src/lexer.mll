@@ -16,10 +16,10 @@ rule token = parse
   | "{*"
       { comment 0 lexbuf }
   | '"'
-      { string_literal ~escaped:false ~str:"" lexbuf }
+      { string_literal false "" lexbuf }
   | digit+ as digits
       { INT (int_of_string digits) }
-  | digit+ '.' digit* as f | '.' digits+ as f
+  | digit+ '.' digit* as f | '.' digit+ as f
       { FLOAT (float_of_string f) }
   | "type"
       { TYPE }
@@ -51,10 +51,30 @@ rule token = parse
       { THEN }
   | "else"
       { ELSE }
+  | '_'
+      { UNDERSCORE }
   | lower_ident as l
       { LIDENT l }
   | upper_ident as u
       { UIDENT u }
+  | '('
+      { OPEN_PAREN }
+  | ')'
+      { CLOSE_PAREN }
+  | ':'
+      { COLON }
+  | "::"
+      { COLON_COLON }
+  | ','
+      { COMMA }
+  | '\\' (* Add actual lambda character *)
+      { LAMBDA }
+  | "->" (* Add actual arrow character *)
+      { RIGHT_ARROW }
+  | '|'
+      { BAR }
+  | eof
+      { EOF }
 
 and comment depth = parse
   | "{*"
@@ -64,29 +84,35 @@ and comment depth = parse
           token lexbuf
         else
           comment (pred depth) lexbuf }
+  | eof
+      { EOF }
   | _
       { comment depth lexbuf }
 
 and inline_comment = parse
   | "\r" | "\n"
       { token lexbuf }
+  | eof
+      { EOF }
   | _
       { inline_comment lexbuf }
 
-and string_literal ~escaped ~str = parse
+and string_literal escaped str = parse
   | '\\'
       { if not escaped then
-          string_literal ~escaped:true ~str lexbuf
+          string_literal true str lexbuf
         else
-          string_literal ~escaped:false ~str:(str ^ "\\") lexbuf }
+          string_literal false (str ^ "\\") lexbuf }
   | '"'
       { if not escaped then
           STRING str
         else
-          string_literal ~escaped:false ~str:(str ^ "\"") lexbuf }
-  | c
+          string_literal false (str ^ "\"") lexbuf }
+  | eof
+      { EOF }
+  | _ as c
       { if not escaped then
-          string_literal ~escaped ~str:(str ^ c) lexbuf
+          string_literal escaped (str ^ c) lexbuf
         else
           let escape = function
             | 't' -> "\t"
@@ -95,4 +121,4 @@ and string_literal ~escaped ~str = parse
             | _ ->
               print_endline "Encountered unknown escape code in string!";
               assert false in
-          string_literal ~escaped ~str:(str ^ escaped c) lexbuf }
+          string_literal escaped (str ^ escaped c) lexbuf }

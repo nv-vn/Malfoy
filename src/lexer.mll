@@ -61,8 +61,12 @@ rule token = parse
       { OPEN_PAREN }
   | ')'
       { CLOSE_PAREN }
+  | '='
+      { EQUALS }
   | ':'
       { COLON }
+  | "<=>"
+      { EQUIV }
   | "::"
       { COLON_COLON }
   | ','

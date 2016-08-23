@@ -12,5 +12,5 @@ Executable "malfoy"
   Path: src/
   MainIs: main.ml
   CompiledObject: best
-  BuildDepends: malfunction, compiler-libs.common
+  BuildDepends: malfunction, compiler-libs.common, sexplib
   BuildTools+: ocamllex, ocamlyacc

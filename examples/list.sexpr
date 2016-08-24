@@ -1,0 +1,12 @@
+(
+
+(type List (< Nil
+             (Cons a List)))
+
+(let length
+  (fn (xs)
+    (match xs
+      ( Nil         (<INT> 0))
+      ((Cons x xs)  (+ (<INT> 1) (length xs))))))
+
+)

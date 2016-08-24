@@ -3,23 +3,27 @@ open Substs
 open Sexplib
 open Sexplib.Sexp
 
-let rec ast_of_sexp = function
+let rec ast_of_sexp =
+  let check_rest = function
+    | [] -> []
+    | rest -> ast_of_sexp (List rest) in
+  function
   | List (List [Atom "do"; e]::rest) ->
-    `Sexec (expr_of_sexp e)::ast_of_sexp (List rest)
+    `Sexec (expr_of_sexp e)::check_rest rest
   | List (List [Atom "val"; Atom name; ty]::rest) ->
-    `Sval (name, type_of_sexp ty)::ast_of_sexp (List rest)
+    `Sval (name, type_of_sexp ty)::check_rest rest
   | List (List [Atom "let"; pattern; e]::rest) ->
-    `Sbind (pattern_of_sexp pattern, expr_of_sexp e, fresh_tvar ())::ast_of_sexp (List rest)
+    `Sbind (pattern_of_sexp pattern, expr_of_sexp e, fresh_tvar ())::check_rest rest
   | List (List [Atom "type"; t; ty]::rest) ->
-    `Stype (t, type_of_sexp ty)::ast_of_sexp (List rest)
+    `Stype (t, type_of_sexp ty)::check_rest rest
   | List (List [Atom "dual"; a; b]::rest) ->
-    `Sdual (type_of_sexp a, type_of_sexp b)::ast_of_sexp (List rest)
+    `Sdual (type_of_sexp a, type_of_sexp b)::check_rest rest
   | List (List [Atom "open"; Atom id]::rest) ->
-    `Sopen (Id.Iident id)::ast_of_sexp (List rest)
+    `Sopen (Id.Iident id)::check_rest rest
   | _ -> assert false
 
 and type_of_sexp = function
-  | Atom a when a.[0] = Char.lowercase a.[0] -> Tvar a
+  | Atom a when a.[0] = Char.lowercase_ascii a.[0] -> Tvar a
   | Atom a -> Tconst (Id.Iident a)
   | List [Atom "->"; a; b] -> Tarrow (type_of_sexp a, type_of_sexp b)
   | List (Atom ","::rest) -> Ttuple (List.map type_of_sexp rest)
@@ -45,9 +49,40 @@ and variant_of_sexp = function
   | List (Atom a::rest) -> (Tname a, List.map type_of_sexp rest)
   | _ -> assert false
 
-and expr_of_sexp = function _ -> assert false
+and expr_of_sexp = function
+  | List [Atom "<INT>"; Atom x] -> `Eliteral (`Lint (int_of_string x), fresh_tvar ())
+  | List [Atom "<FLOAT>"; Atom x] -> `Eliteral (`Lfloat (float_of_string x), fresh_tvar ())
+  | List [Atom "<STRING>"; Atom x] ->
+    let last = String.length x - 1 in
+    let s = String.sub x 1 (last - 1) in
+    `Eliteral (`Lstring s, fresh_tvar ())
+  | List (Atom ","::xs) -> `Etuple (List.map expr_of_sexp xs, fresh_tvar ())
+  | Atom a when a.[0] = Char.lowercase_ascii a.[0] -> `Eident (a, fresh_tvar ())
+  | Atom a -> `Evariant (a, [], fresh_tvar ())
+  | List [Atom "fn"; List args; e] ->
+    List.fold_right (fun arg inner -> `Efun (pattern_of_sexp arg, inner, fresh_tvar ())) args (expr_of_sexp e)
+  | List [Atom "match"; x; List branches] ->
+    `Ematch (expr_of_sexp x, List.map (fun (List [p; e]) -> (pattern_of_sexp p, expr_of_sexp e)) branches, fresh_tvar ())
+  | List [Atom "let"; pat; e; ctx] ->
+    `Ebind (pattern_of_sexp pat, expr_of_sexp e, expr_of_sexp ctx, fresh_tvar ())
+  | List (Atom tag::args) when tag.[0] = Char.uppercase_ascii tag.[0] ->
+    `Evariant (tag, List.map expr_of_sexp args, fresh_tvar ())
+  | List (f::xs) -> List.fold_left (fun f x -> `Eapply (f, expr_of_sexp x, fresh_tvar ())) (expr_of_sexp f) xs
+  | _ -> assert false
 
-and pattern_of_sexp = function _ -> assert false
+and pattern_of_sexp = function
+  | Atom "_" -> `Pwildcard (fresh_tvar ())
+  | List [Atom "<INT>"; Atom x] -> `Pliteral (`Lint (int_of_string x), fresh_tvar ())
+  | List [Atom "<FLOAT>"; Atom x] -> `Pliteral (`Lfloat (float_of_string x), fresh_tvar ())
+  | List [Atom "<STRING>"; Atom x] ->
+    let last = String.length x - 1 in
+    let s = String.sub x 1 (last - 1) in
+    `Pliteral (`Lstring s, fresh_tvar ())
+  | List (Atom ","::xs) -> `Ptuple (List.map pattern_of_sexp xs, fresh_tvar ())
+  | Atom a when a.[0] = Char.lowercase_ascii a.[0] -> `Pident (a, fresh_tvar ())
+  | Atom a -> `Pvariant (a, [], fresh_tvar ())
+  | List (Atom tag::args) -> `Pvariant (tag, List.map pattern_of_sexp args, fresh_tvar ())
+  | _ -> assert false
 
 let parse_string str =
   let sexp = Sexp.of_string str in

@@ -163,6 +163,8 @@ let rec collect_substitutions subst env = function
       | Tarrow (a, b) ->
         let subst' = unify a x_t subst_x in
         unify t b subst'
+      | Tvar a ->
+        unify (Tvar a) (Tarrow (x_t, fresh_tvar ())) subst
       | _ ->
         print_endline "Could not unify function application";
         assert false

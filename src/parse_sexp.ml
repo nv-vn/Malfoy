@@ -3,6 +3,13 @@ open Substs
 open Sexplib
 open Sexplib.Sexp
 
+let is_uident a =
+  match a.[0] with
+  | 'A'..'Z' -> true
+  | _ -> false
+
+let is_lident a = not (is_uident a)
+
 let rec ast_of_sexp =
   let check_rest = function
     | [] -> []
@@ -23,7 +30,7 @@ let rec ast_of_sexp =
   | _ -> assert false
 
 and type_of_sexp = function
-  | Atom a when a.[0] = Char.lowercase_ascii a.[0] -> Tvar a
+  | Atom a when is_lident a -> Tvar a
   | Atom a -> Tconst (Id.Iident a)
   | List [Atom "->"; a; b] -> Tarrow (type_of_sexp a, type_of_sexp b)
   | List (Atom ","::rest) -> Ttuple (List.map type_of_sexp rest)
@@ -57,7 +64,7 @@ and expr_of_sexp = function
     let s = String.sub x 1 (last - 1) in
     `Eliteral (`Lstring s, fresh_tvar ())
   | List (Atom ","::xs) -> `Etuple (List.map expr_of_sexp xs, fresh_tvar ())
-  | Atom a when a.[0] = Char.lowercase_ascii a.[0] -> `Eident (Id.Iident a, fresh_tvar ())
+  | Atom a when is_lident a-> `Eident (Id.Iident a, fresh_tvar ())
   | Atom a -> `Evariant (Tname a, [], fresh_tvar ())
   | List [Atom "fn"; List args; e] ->
     List.fold_right (fun arg inner -> `Efun (pattern_of_sexp arg, inner, fresh_tvar ())) args (expr_of_sexp e)
@@ -65,7 +72,7 @@ and expr_of_sexp = function
     `Ematch (expr_of_sexp x, List.map (fun (List [p; e]) -> (pattern_of_sexp p, expr_of_sexp e)) branches, fresh_tvar ())
   | List [Atom "let"; pat; e; ctx] ->
     `Ebind (pattern_of_sexp pat, expr_of_sexp e, expr_of_sexp ctx, fresh_tvar ())
-  | List (Atom tag::args) when tag.[0] = Char.uppercase_ascii tag.[0] ->
+  | List (Atom tag::args) when is_uident tag ->
     `Evariant (Tname tag, List.map expr_of_sexp args, fresh_tvar ())
   | List (f::xs) -> List.fold_left (fun f x -> `Eapply (f, expr_of_sexp x, fresh_tvar ())) (expr_of_sexp f) xs
   | _ -> assert false
@@ -79,7 +86,7 @@ and pattern_of_sexp = function
     let s = String.sub x 1 (last - 1) in
     `Pliteral (`Lstring s, fresh_tvar ())
   | List (Atom ","::xs) -> `Ptuple (List.map pattern_of_sexp xs, fresh_tvar ())
-  | Atom a when a.[0] = Char.lowercase_ascii a.[0] -> `Pident (a, fresh_tvar ())
+  | Atom a when is_lident a -> `Pident (a, fresh_tvar ())
   | Atom a -> `Pvariant (Tname a, [], fresh_tvar ())
   | List (Atom tag::args) -> `Pvariant (Tname tag, List.map pattern_of_sexp args, fresh_tvar ())
   | _ -> assert false

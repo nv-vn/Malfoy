@@ -18,5 +18,5 @@ let () =
     String.trim s in
   print_endline (load_file file);
   let ast = Desugar.desugar @@ Parse_sexp.parse_string (load_file file) in
-  let annotated = Inference.type_ast ast in
+  let annotated = Inference.type_ast ~env:Type_env.(env_of_list default) ast in
   ()

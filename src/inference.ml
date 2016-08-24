@@ -207,3 +207,11 @@ let infer_types ?(subst=EmptySubst) ?(env=EmptyEnv) e =
       Ematch (apply x, List.map apply_branch branches, apply_substitutions t subst')
     | Ebind (pat, e, ctx, t) -> Ebind (apply_pat pat, apply e, apply ctx, apply_substitutions t subst')
   in apply e
+
+let type_ast ?(subst=EmptySubst) ?(env=EmptyEnv) stmts =
+  (* TODO: Extract type info from annotated top-level bindings! *)
+  List.map (function Sexec e -> Sexec (infer_types ~subst ~env e)
+                   | Sbind (pat, e, t) ->
+                     let env = bind_patterns env pat in
+                     Sbind (pat, infer_types ~subst ~env e, t)
+                   | stmt -> stmt) stmts

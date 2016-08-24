@@ -17,7 +17,7 @@ let rec ast_of_pattern = function
   | _ -> assert false (* Remeber, we're feeding in types from nanopasses *)
 
 let rec ast_of_expr = function
-  | `Eliteral (l, t) -> Eliteral (l, t)
+  | `Eliteral (l, t) -> Eliteral (ast_of_literal l, t)
   | `Eident (id, t) -> Eident (id, t)
   | `Etuple (es, t) -> Etuple (List.map ast_of_expr es, t)
   | `Evariant (tag, args, t) -> Evariant (tag, List.map ast_of_expr args, t)
@@ -86,9 +86,9 @@ let rec expand_begin = function
      let f : a -> a = \x -> x *)
 let rec expand_vals = function
   | [] -> []
-  | (`Sval (id1, t1))::(`Sbind (id2, e, t2))::rest ->
+  | `Sval (id1, t1)::`Sbind (`Pident (id2, _), e, t2)::rest ->
     if id1 = id2 then
-      (`Sbind (id1, e, t1))::(expand_vals rest)
+      `Sbind (`Pident (id1, t1), e, t1)::expand_vals rest
     else begin
       print_endline "Unmatched top-level val/let statements!";
       assert false

@@ -7,6 +7,6 @@
   (fn (xs)
     (match xs
       ( Nil         (<INT> 0))
-      ((Cons x xs)  (+ (<INT> 1) (length xs))))))
+      ((Cons _ xs)  (+ (<INT> 1) (length xs))))))
 
 )

@@ -15,6 +15,8 @@ let () =
     let s = String.create n in
     really_input ic s 0 n;
     close_in ic;
-    s in
+    String.trim s in
   print_endline (load_file file);
-  ignore @@ Parse_sexp.parse_string (load_file file)
+  let ast = Desugar.desugar @@ Parse_sexp.parse_string (load_file file) in
+  let annotated = Inference.type_ast ast in
+  ()

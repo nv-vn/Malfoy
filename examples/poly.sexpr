@@ -1,0 +1,7 @@
+(
+
+(do
+  (let id (fn (x) x)
+  (, (id (<INT> 0)) (id (<STRING> "hi")))))
+
+)

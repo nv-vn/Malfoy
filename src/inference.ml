@@ -110,12 +110,6 @@ let type_of_literal lit =
   | Lint _ -> int
   | Lfloat _ -> float
 
-let get_expr_type = function
-  | Eliteral (_, t) | Eident (_, t) | Etuple (_, t)
-  | Evariant (_, _, t) | Eapply (_, _, t) | Efun (_, _, t)
-  | Ematch (_, _, t) | Ebind (_, _, _, t)
-    -> t
-
 (* TODO: Should this perform some unification? Should it just return the assigned type? *)
 let rec type_of_pattern = function
   | Pwildcard t -> t
@@ -159,15 +153,9 @@ let rec collect_substitutions subst env = function
       and x_t = get_expr_type x in
       let subst_f = collect_substitutions subst env f in
       let subst_x = collect_substitutions subst_f env x in
-      match apply_substitutions f_t subst_x with
-      | Tarrow (a, b) ->
-        let subst' = unify a x_t subst_x in
-        unify t b subst'
-      | Tvar a ->
-        unify (Tvar a) (Tarrow (x_t, fresh_tvar ())) subst
-      | _ ->
-        print_endline "Could not unify function application";
-        assert false
+      let t' = fresh_tvar () in
+      let subst' = unify f_t (Tarrow (x_t, t')) subst_x in
+      unify t t' subst'
     end
   | Efun (pat, e, t) ->
     let env' = bind_patterns env pat in

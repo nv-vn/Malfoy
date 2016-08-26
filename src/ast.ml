@@ -49,3 +49,43 @@ type stmt =
   | Sdual of Type.t * Type.t
   (* open X *)
   | Sopen of Id.ident
+
+let get_expr_type = function
+  | Eliteral (_, t) | Eident (_, t) | Etuple (_, t)
+  | Evariant (_, _, t) | Eapply (_, _, t) | Efun (_, _, t)
+  | Ematch (_, _, t) | Ebind (_, _, _, t)
+    -> t
+
+let string_of_literal = function
+  | Lchar c -> String.make 1 c
+  | Lstring s -> s
+  | Lint i -> string_of_int i
+  | Lfloat f -> string_of_float f
+
+let rec string_of_pattern = function
+  | Pwildcard _ -> "_"
+  | Pliteral (l, _) -> string_of_literal l
+  | Pident (id, _) -> id
+  | Ptuple (ps, _) -> "(" ^ (List.map string_of_pattern ps |> String.concat ",") ^ ")"
+  | Pvariant (Type.Tname tag, [], _) -> tag
+  | Pvariant (Type.Tname tag, ps, _) -> tag ^ "(" ^ (List.map string_of_pattern ps |> String.concat ",") ^ ")"
+  | _ -> "Invalid pattern"
+
+let string_of_binds ast =
+  let rec expr = function
+    | Etuple (es, _) -> List.map expr es |> List.flatten
+    | Evariant (_, args, _) -> List.map expr args |> List.flatten
+    | Eapply (f, x, _) -> expr f @ expr x
+    | Efun (_, x, _) -> expr x
+    | Ematch (_, branches, _) -> List.map (fun (_, e) -> expr e) branches |> List.flatten
+    | Ebind (pat, e, ctx, t) ->
+      let decl = string_of_pattern pat ^ " : " ^ Type.string_of_type t in
+      decl::expr e@expr ctx
+    | _ -> [] in
+  let stmt = function
+    | Sexec e -> expr e
+    | Sbind (pat, e, _) ->
+      let decl = string_of_pattern pat ^ " : " ^ Type.string_of_type (get_expr_type e) in
+      decl::expr e
+    | _ -> [] in
+  stmt ast |> String.concat "\n"

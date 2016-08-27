@@ -16,11 +16,23 @@ let rec apply_substitutions ty substs =
   | Tvar a as tvar -> begin
       match find_subst substs tvar with
       | Some value -> subst value
-      | None -> Tvar a
+      | None -> tvar
+    end
+  | Tconst a as tconst -> begin
+      match find_subst substs tconst with
+      | Some value -> subst value
+      | None -> tconst
     end
   | Tarrow (a, b) -> Tarrow (subst a, subst b)
   | Ttuple ts -> Ttuple (List.map subst ts)
-  | Tapply (a, b) -> Tapply (subst a, subst b)
+  | Tapply (a, b) -> begin
+      let a' = subst a and b' = subst b in
+      match a' with
+      | Tforall (x::xs, t) ->
+        let substs' = ExtendSubst (substs, x, b) in
+        apply_substitutions a' substs'
+      | _ -> assert false
+    end
   | Tvariant row ->
     Tvariant {row with
               fields =
@@ -31,7 +43,6 @@ let rec apply_substitutions ty substs =
   | Ttag t -> Ttag (subst t)
   | Tdual t -> Tdual (subst t)
   | Tforall (ts, t) -> Tforall (ts, apply_substitutions t substs)
-  | ty -> ty
 
 let rec unify_rows (fields1, more1) (fields2, more2) subst =
   (* Get all sets of matching tags *)
@@ -218,8 +229,8 @@ let rec collect_substitutions subst env = function
     let subst_ctx = collect_substitutions subst_e env'' ctx in
     unify t (get_expr_type ctx) subst_ctx
 
-let infer_types ?(subst=EmptySubst) ?(type_env=EmptySubst) ?(env=EmptyEnv) e =
-  let subst' = collect_substitutions subst env e +@ type_env in
+let infer_types ?(subst=EmptySubst) ?(env=EmptyEnv) e =
+  let subst' = collect_substitutions subst env e in
   let rec apply_pat = function
     | Pwildcard t -> Pwildcard (apply_substitutions t subst')
     | Pliteral (l, t) -> Pliteral (l, apply_substitutions t subst')
@@ -248,8 +259,9 @@ let rec declare_types type_env = function
 let type_ast ?(subst=EmptySubst) ?(type_env=EmptySubst) ?(env=EmptyEnv) stmts =
   (* TODO: Extract type info from annotated top-level bindings! *)
   let type_env = declare_types type_env stmts in
-  List.map (function Sexec e -> Sexec (infer_types ~subst ~type_env ~env e)
+  List.map (function Sexec e -> Sexec (infer_types ~subst:(subst +@ type_env) ~env e)
                    | Sbind (pat, e) ->
-                     let env = bind_patterns env pat in
-                     Sbind (pat, infer_types ~subst ~type_env ~env e)
+                     let subst' = unify (get_expr_type e) (type_of_pattern pat) (subst +@ type_env) in
+                     let env' = bind_patterns env pat in
+                     Sbind (pat, infer_types ~subst:subst' ~env:env' e)
                    | stmt -> stmt) stmts

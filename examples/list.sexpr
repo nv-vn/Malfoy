@@ -1,8 +1,9 @@
 (
 
-(type List (forall a (< Nil
-                       (Cons a List))))
+(type List (forall a (as self (< Nil
+                                (Cons a self)))))
 
+(val length (-> (List Int) Int))
 (let length
   (fn (xs)
     (match xs

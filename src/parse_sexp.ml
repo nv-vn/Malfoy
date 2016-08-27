@@ -43,16 +43,18 @@ and type_of_sexp = function
     Tforall (List.map type_of_sexp args, type_of_sexp t)
   | List [Atom "->"; a; b] -> Tarrow (type_of_sexp a, type_of_sexp b)
   | List (Atom ","::rest) -> Ttuple (List.map type_of_sexp rest)
-  | List (Atom ">"::rest) -> Tvariant { self = fresh_tvar ()
-                                      ; more = fresh_tvar ()
-                                      ; closed = false
-                                      ; fields = List.map variant_of_sexp rest
-                                      }
-  | List (Atom "<"::rest) -> Tvariant { self = fresh_tvar ()
-                                      ; more = fresh_tvar ()
-                                      ; closed = true
-                                      ; fields = List.map variant_of_sexp rest
-                                      }
+  | List (Atom c::rest) when c = "<" or c = ">" ->
+    Tvariant { self = fresh_tvar ()
+             ; more = fresh_tvar ()
+             ; closed = (c = "<")
+             ; fields = List.map variant_of_sexp rest
+             }
+  | List [Atom "as"; Atom name; List (Atom c::rest)] when c = "<" or c = ">" ->
+    Tvariant { self = Tvar name
+             ; more = fresh_tvar ()
+             ; closed = (c = "<")
+             ; fields = List.map variant_of_sexp rest
+             }
   | List [Atom "-"; ty] -> Ttag (type_of_sexp ty)
   | List [Atom "*"; ty] -> Tdual (type_of_sexp ty)
   | List (t::rest) -> List.fold_left (fun ty ty' -> Tapply (ty, type_of_sexp ty')) (type_of_sexp t) rest

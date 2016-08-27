@@ -55,9 +55,9 @@ let rec string_of_type =
   let string_of_row {fields; closed} =
     let fields' =
       List.map (function Tunknown, ts ->
-                           List.fold_left (fun t a -> Tapply (t, a)) (Tconst (Id.Iident "_")) ts |> string_of_type
+                           "_ " ^ String.concat " " (List.map string_of_type ts)
                        | Tname s, ts ->
-                           List.fold_left (fun t a -> Tapply (t, a)) (Tconst (Id.Iident s)) ts |> string_of_type)
+                         s ^ " " ^ String.concat " " (List.map string_of_type ts))
                fields in
     "[" ^ (if closed then "< " else "> ")
         ^ String.concat " | " fields' ^ "]" in
@@ -67,7 +67,7 @@ let rec string_of_type =
   | Tconst c -> Id.string_of_ident c
   | Tarrow (t, u) -> string_of_type t ^ " -> " ^ string_of_type u
   | Ttuple ts -> "(" ^ (List.map string_of_type ts |> String.concat ", ") ^ ")"
-  | Tapply (t, u) -> string_of_type t ^ " " ^ string_of_type u
+  | Tapply (t, u) -> "(" ^ string_of_type t ^ " " ^ string_of_type u ^ ")"
   | Tvariant row -> string_of_row (simplify_variant row)
   | Ttag (Tvariant _ as var) -> "-" ^ string_of_type var
   | Ttag other -> "-(" ^ string_of_type other ^ ")"

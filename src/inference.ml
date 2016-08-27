@@ -29,8 +29,9 @@ let rec apply_substitutions ty substs =
       let a' = subst a and b' = subst b in
       match a' with
       | Tforall (x::xs, t) ->
+        let t' = if xs = [] then t else Tforall (xs, t) in
         let substs' = ExtendSubst (substs, x, b) in
-        apply_substitutions a' substs'
+        apply_substitutions t' substs'
       | _ -> assert false
     end
   | Tvariant row ->

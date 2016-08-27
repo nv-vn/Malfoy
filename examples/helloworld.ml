@@ -1,3 +1,3 @@
 do
-  print_endline "Hello, world!"
+  print "Hello, world!"
 end

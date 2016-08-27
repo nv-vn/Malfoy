@@ -218,8 +218,8 @@ let rec collect_substitutions subst env = function
     let subst_ctx = collect_substitutions subst_e env'' ctx in
     unify t (get_expr_type ctx) subst_ctx
 
-let infer_types ?(subst=EmptySubst) ?(env=EmptyEnv) e =
-  let subst' = collect_substitutions subst env e in
+let infer_types ?(subst=EmptySubst) ?(type_env=EmptySubst) ?(env=EmptyEnv) e =
+  let subst' = collect_substitutions subst env e +@ type_env in
   let rec apply_pat = function
     | Pwildcard t -> Pwildcard (apply_substitutions t subst')
     | Pliteral (l, t) -> Pliteral (l, apply_substitutions t subst')
@@ -239,10 +239,17 @@ let infer_types ?(subst=EmptySubst) ?(env=EmptyEnv) e =
     | Ebind (pat, e, ctx, t) -> Ebind (apply_pat pat, apply e, apply ctx, apply_substitutions t subst')
   in apply e
 
-let type_ast ?(subst=EmptySubst) ?(env=EmptyEnv) stmts =
+let rec declare_types type_env = function
+  | [] -> type_env
+  | Stype (name, value)::rest ->
+    declare_types (ExtendSubst (type_env, Tconst (Id.Iident name), value)) rest
+  | _::rest -> declare_types type_env rest
+
+let type_ast ?(subst=EmptySubst) ?(type_env=EmptySubst) ?(env=EmptyEnv) stmts =
   (* TODO: Extract type info from annotated top-level bindings! *)
-  List.map (function Sexec e -> Sexec (infer_types ~subst ~env e)
+  let type_env = declare_types type_env stmts in
+  List.map (function Sexec e -> Sexec (infer_types ~subst ~type_env ~env e)
                    | Sbind (pat, e) ->
                      let env = bind_patterns env pat in
-                     Sbind (pat, infer_types ~subst ~env e)
+                     Sbind (pat, infer_types ~subst ~type_env ~env e)
                    | stmt -> stmt) stmts

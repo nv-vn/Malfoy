@@ -1,7 +1,7 @@
 (
 
-(type List (< Nil
-             (Cons a List)))
+(type List (forall a (< Nil
+                       (Cons a List))))
 
 (let length
   (fn (xs)

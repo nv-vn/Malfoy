@@ -1,7 +1,7 @@
 (
 
 (do
-  (print_endline
+  (print
     (<STRING> "Hello, world!")))
 
 )

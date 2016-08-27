@@ -32,6 +32,15 @@ let rec ast_of_sexp =
 and type_of_sexp = function
   | Atom a when is_lident a -> Tvar a
   | Atom a -> Tconst (Id.Iident a)
+  | List (Atom "forall"::rest) ->
+    let rec aux = function
+      | x::[last] -> [x], last
+      | x::xs ->
+        let front, last = aux xs in
+        (x::front), last
+      | _ -> assert false in
+    let (args, t) = aux rest in
+    Tforall (List.map type_of_sexp args, type_of_sexp t)
   | List [Atom "->"; a; b] -> Tarrow (type_of_sexp a, type_of_sexp b)
   | List (Atom ","::rest) -> Ttuple (List.map type_of_sexp rest)
   | List (Atom ">"::rest) -> Tvariant { self = fresh_tvar ()

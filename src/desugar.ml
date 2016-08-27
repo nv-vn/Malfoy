@@ -29,7 +29,7 @@ let rec ast_of_expr = function
 
 let ast_of_stmt = function
   | `Sexec e -> Sexec (ast_of_expr e)
-  | `Sbind (pat, e, t) -> Sbind (ast_of_pattern pat, ast_of_expr e, t)
+  | `Sbind (pat, e) -> Sbind (ast_of_pattern pat, ast_of_expr e)
   | `Stype (s, t) -> Stype (s, t)
   | `Sdual (t1, t2) -> Sdual (t1, t2)
   | `Sopen m -> Sopen m
@@ -86,9 +86,9 @@ let rec expand_begin = function
      let f : a -> a = \x -> x *)
 let rec expand_vals = function
   | [] -> []
-  | `Sval (id1, t1)::`Sbind (`Pident (id2, _), e, t2)::rest ->
+  | `Sval (id1, t1)::`Sbind (`Pident (id2, _), e)::rest ->
     if id1 = id2 then
-      `Sbind (`Pident (id1, t1), e, t1)::expand_vals rest
+      `Sbind (`Pident (id1, t1), e)::expand_vals rest
     else begin
       print_endline "Unmatched top-level val/let statements!";
       assert false
@@ -101,7 +101,7 @@ let desugar statements =
   let statements' =
     List.map (function `Sexec e ->
                        `Sexec (expr_passes e)
-                     | `Sbind (pat, e, t) ->
-                       `Sbind (pat, expr_passes e, t)
+                     | `Sbind (pat, e) ->
+                       `Sbind (pat, expr_passes e)
                      | stmt -> stmt) statements in
   List.map ast_of_stmt statements'

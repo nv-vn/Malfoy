@@ -20,7 +20,7 @@ let rec ast_of_sexp =
   | List (List [Atom "val"; Atom name; ty]::rest) ->
     `Sval (name, type_of_sexp ty)::check_rest rest
   | List (List [Atom "let"; pattern; e]::rest) ->
-    `Sbind (pattern_of_sexp pattern, expr_of_sexp e, fresh_tvar ())::check_rest rest
+    `Sbind (pattern_of_sexp pattern, expr_of_sexp e)::check_rest rest
   | List (List [Atom "type"; Atom t; ty]::rest) ->
     `Stype (t, type_of_sexp ty)::check_rest rest
   | List (List [Atom "dual"; a; b]::rest) ->

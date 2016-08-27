@@ -214,7 +214,7 @@ let rec collect_substitutions subst env = function
     let env' = bind_patterns env pat in
     let subst_e = collect_substitutions subst' env' e in (* TODO: is env' correct here? Should allow recursion *)
     let t_e = apply_substitutions (get_expr_type e) subst_e in
-    let env'' = bind_patterns ~subst:subst_e ~free:(generalize env' t_e) env pat in
+    let env'' = bind_patterns ~subst:subst_e ~free:(generalize env' t_e) env pat in (* Does [env] here cause old changes to drop? *)
     let subst_ctx = collect_substitutions subst_e env'' ctx in
     unify t (get_expr_type ctx) subst_ctx
 
@@ -242,7 +242,7 @@ let infer_types ?(subst=EmptySubst) ?(env=EmptyEnv) e =
 let type_ast ?(subst=EmptySubst) ?(env=EmptyEnv) stmts =
   (* TODO: Extract type info from annotated top-level bindings! *)
   List.map (function Sexec e -> Sexec (infer_types ~subst ~env e)
-                   | Sbind (pat, e, t) ->
+                   | Sbind (pat, e) ->
                      let env = bind_patterns env pat in
-                     Sbind (pat, infer_types ~subst ~env e, t)
+                     Sbind (pat, infer_types ~subst ~env e)
                    | stmt -> stmt) stmts

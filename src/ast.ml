@@ -44,7 +44,7 @@ type stmt =
   (* do e end *)
   | Sexec of expr
   (* let x = y *)
-  | Sbind of pattern * expr * Type.t
+  | Sbind of pattern * expr
   (* type T = S *)
   | Stype of string * Type.t
   (* dual T <=> S *)
@@ -86,7 +86,7 @@ let string_of_binds ast =
     | _ -> [] in
   let stmt = function
     | Sexec e -> expr e
-    | Sbind (pat, e, _) ->
+    | Sbind (pat, e) ->
       let decl = string_of_pattern pat ^ " : " ^ Type.string_of_type (get_expr_type e) in
       decl::expr e
     | _ -> [] in

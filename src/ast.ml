@@ -1,3 +1,5 @@
+open Util
+
 type literal =
   (* 'a' *)
   | Lchar of char
@@ -73,13 +75,13 @@ let rec string_of_pattern = function
 
 let string_of_binds ast =
   let rec expr = function
-    | Etuple (es, _) -> List.map expr es |> List.flatten
-    | Evariant (_, args, _) -> List.map expr args |> List.flatten
+    | Etuple (es, _) -> es >>= expr
+    | Evariant (_, args, _) -> args >>= expr
     | Eapply (f, x, _) -> expr f @ expr x
     | Efun (_, x, _) -> expr x
-    | Ematch (_, branches, _) -> List.map (fun (_, e) -> expr e) branches |> List.flatten
+    | Ematch (_, branches, _) -> branches >>= fun (_, e) -> expr e
     | Ebind (pat, e, ctx, t) ->
-      let decl = string_of_pattern pat ^ " : " ^ Type.string_of_type t in
+      let decl = string_of_pattern pat ^ " : " ^ Type.string_of_type (get_expr_type e) in
       decl::expr e@expr ctx
     | _ -> [] in
   let stmt = function

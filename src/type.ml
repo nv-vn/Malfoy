@@ -1,6 +1,8 @@
 type t =
   (* a *)
   | Tvar of string
+  (* forall a. a *)
+  | Tforall of t list * t
   (* A *)
   | Tconst of Id.ident
   (* A -> B *)
@@ -61,6 +63,7 @@ let rec string_of_type =
         ^ String.concat " | " fields' ^ "]" in
   function
   | Tvar v -> v
+  | Tforall (ts, t) -> String.concat " " (List.map string_of_type ts) ^ "." ^ string_of_type t
   | Tconst c -> Id.string_of_ident c
   | Tarrow (t, u) -> string_of_type t ^ " -> " ^ string_of_type u
   | Ttuple ts -> "(" ^ (List.map string_of_type ts |> String.concat ", ") ^ ")"

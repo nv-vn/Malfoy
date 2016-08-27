@@ -30,18 +30,8 @@ let rec apply_substitutions ty substs =
               more = subst row.more}
   | Ttag t -> Ttag (subst t)
   | Tdual t -> Tdual (subst t)
+  | Tforall (ts, t) -> Tforall (ts, apply_substitutions t substs)
   | ty -> ty
-
-let rec doesn't_occur tvar ty =
-  let all f = List.fold_left (fun b x -> (f x) && b) true in
-  match ty with
-  | Tvar a as tvar' -> tvar <> tvar'
-  | Tarrow (a, b) -> doesn't_occur tvar a && doesn't_occur tvar b
-  | Ttuple ts -> all (doesn't_occur tvar) ts
-  | Tapply (a, b) -> doesn't_occur tvar a && doesn't_occur tvar b
-  | Tvariant row -> all (fun (_, ts) -> all (doesn't_occur tvar) ts) row.fields
-  | Ttag t -> doesn't_occur tvar t
-  | _ -> true
 
 let rec unify_rows (fields1, more1) (fields2, more2) subst =
   (* Get all sets of matching tags *)
@@ -99,6 +89,7 @@ and unify t1 t2 subst =
   | Tvariant row1, Tvariant row2 ->
     unify_rows (row1.fields, row1.more) (row2.fields, row2.more) subst
   | Ttag t1, Ttag t2 -> unify t1 t2 subst
+  | Tforall _, _ | _, Tforall _ -> assert false (* Will this case ever exist during [unify] *)
   | _, _ ->
     print_endline ("Couldn't unify types: \n  " ^ string_of_type t1 ^ "\nand\n  " ^ string_of_type t2);
     assert false (* Can't unify types *)
@@ -124,11 +115,56 @@ let rec type_of_pattern = function
              ; closed = false
              }
 
-let rec bind_patterns env = function
-  | Pident (id, t) -> ExtendEnv (env, Id.Iident id, t)
-  | Ptuple (ps, _) -> List.fold_left bind_patterns env ps
-  | Pvariant (_, args, _) -> List.fold_left bind_patterns env args
+let rec bind_patterns ?(subst=EmptySubst) ?(free=[]) env =
+  let make_free t = (* Automatically remove unused quantified types *)
+    let free' =
+      free >>= fun t' ->
+      let t'' = apply_substitutions t' subst in
+      if occurs t'' (apply_substitutions t subst) then [t''] else [] in
+    if free' = [] then t
+    else Tforall (free', t) in
+  function
+  | Pident (id, t) -> ExtendEnv (env, Id.Iident id, make_free t)
+  | Ptuple (ps, _) -> List.fold_left (bind_patterns ~subst ~free) env ps
+  | Pvariant (_, args, _) -> List.fold_left (bind_patterns ~subst ~free) env args
   | _ -> env
+
+let rec generalize gamma = function
+  | Tconst _ -> []
+  | Tarrow (a, b) -> generalize gamma a @ generalize gamma b
+  | Ttuple ts -> ts >>= generalize gamma
+  | Tapply (t, t') -> generalize gamma t @ generalize gamma t'
+  | Tvariant { fields; self; more } -> fields >>= fun (_, ts) -> ts >>= generalize gamma
+  | Ttag t -> generalize gamma t
+  | Tdual t -> generalize gamma t
+  | t -> if contains gamma t then [] else [t] (* If it's already contained in G then it's bound *)
+
+let instantiate bound =
+  let subst = Hashtbl.create 10 in
+  let rec inst = function
+    | Tconst _ as ty -> ty
+    | Tarrow (a, b) -> Tarrow (inst a, inst b)
+    | Ttuple ts -> Ttuple (List.map inst ts)
+    | Tapply (t, t') -> Tapply (inst t, inst t')
+    | Tvariant row ->
+      let self' = fresh_tvar ()
+      and more' = fresh_tvar () in
+      Hashtbl.add subst row.self self';
+      Hashtbl.add subst row.more more';
+      Tvariant { row with self = self';
+                          more = more';
+                          fields = List.map (fun (tag, ts) -> (tag, List.map inst ts)) row.fields }
+    | Ttag t -> Ttag (inst t)
+    | Tdual t -> Tdual (inst t)
+    | Tvar a as ty when Hashtbl.find_all subst ty = [] ->
+      if List.mem ty bound then
+        let ty' = fresh_tvar () in
+        Hashtbl.add subst ty ty';
+        ty'
+      else ty
+    | Tvar a as ty -> Hashtbl.find subst ty
+    | ty -> ty
+  in inst
 
 let rec collect_substitutions subst env = function
   | Eliteral (l, t) ->
@@ -153,8 +189,11 @@ let rec collect_substitutions subst env = function
       and x_t = get_expr_type x in
       let subst_f = collect_substitutions subst env f in
       let subst_x = collect_substitutions subst_f env x in
+      let f_t' = match apply_substitutions f_t subst_x with
+        | Tforall (ts, t) -> instantiate ts t
+        | t -> t in
       let t' = fresh_tvar () in
-      let subst' = unify f_t (Tarrow (x_t, t')) subst_x in
+      let subst' = unify f_t' (Tarrow (x_t, t')) subst_x in
       unify t t' subst'
     end
   | Efun (pat, e, t) ->
@@ -174,7 +213,9 @@ let rec collect_substitutions subst env = function
     let subst' = unify (get_expr_type e) (type_of_pattern pat) subst in
     let env' = bind_patterns env pat in
     let subst_e = collect_substitutions subst' env' e in (* TODO: is env' correct here? Should allow recursion *)
-    let subst_ctx = collect_substitutions subst_e env' ctx in
+    let t_e = apply_substitutions (get_expr_type e) subst_e in
+    let env'' = bind_patterns ~subst:subst_e ~free:(generalize env' t_e) env pat in
+    let subst_ctx = collect_substitutions subst_e env'' ctx in
     unify t (get_expr_type ctx) subst_ctx
 
 let infer_types ?(subst=EmptySubst) ?(env=EmptyEnv) e =

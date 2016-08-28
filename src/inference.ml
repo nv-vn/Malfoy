@@ -30,7 +30,7 @@ let rec apply_substitutions ty substs =
       match a' with
       | Tforall (x::xs, t) ->
         let t' = if xs = [] then t else Tforall (xs, t) in
-        let substs' = ExtendSubst (substs, x, b) in
+        let substs' = ExtendSubst (substs, x, b') in
         apply_substitutions t' substs'
       | _ -> assert false
     end

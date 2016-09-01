@@ -4,6 +4,45 @@ open Malfunction
 open Malfunction_parser
 open Malfunction_compiler
 
+let literal_of_ast = function
+  | Lchar c -> `Lchar c
+  | Lstring s -> `Lstring s
+  | Lint i -> `Lint i
+  | Lfloat f -> `Lfloat f
+
+let rec pattern_of_ast = function
+  | Pwildcard _ -> `Pwildcard
+  | Pliteral (l, _) -> `Pliteral (literal_of_ast l)
+  | Pident (i, _) -> `Pident i
+  | Ptuple (ps, _) -> `Ptuple (List.map pattern_of_ast ps)
+  | Pvariant (tag, args, _) -> `Pvariant (tag, List.map pattern_of_ast args)
+
+let rec expr_of_ast = function
+  | Eliteral (l, _) -> `Eliteral (literal_of_ast l)
+  | Eident (id, _) -> `Eident id
+  | Etuple (es, _) -> `Etuple (List.map expr_of_ast es)
+  | Evariant (tag, args, _) -> `Evariant (tag, List.map expr_of_ast args)
+  | Eapply (f, x, _) -> `Eapply (expr_of_ast f, expr_of_ast x)
+  | Efun (pat, e, _) -> `Efun (pattern_of_ast pat, expr_of_ast e)
+  | Ematch (e, branches, _) -> `Ematch (expr_of_ast e, List.map (fun (p, e) -> (pattern_of_ast p, expr_of_ast e)) branches)
+  | Ebind (pat, e, ctx, _) -> `Ebind (pattern_of_ast pat, expr_of_ast e, expr_of_ast ctx)
+
+let ast_of_stmt = function
+  | Sexec e -> `Sexec (expr_of_ast e)
+  | Sbind (pat, e) -> `Sbind (pattern_of_ast pat, expr_of_ast e)
+  | Sopen m -> `Sopen m
+  | _ -> `Sblank
+
+and map_expr f = function
+  | `Etuple es -> `Etuple (List.map f es)
+  | `Evariant (tag, args) -> `Evariant (tag, List.map f args)
+  | `Eapply (f', x) -> `Eapply (f f', f x)
+  | `Efun (pat, e) -> `Efun (pat, f e)
+  | `Ematch (x, branches) -> `Ematch (f x, List.map (fun (p, e) -> (p, f e)) branches)
+  | `Ebind (pat, e, ctx) -> `Ebind (pat, f e, f ctx)
+  | `Eget (e, n) -> `Eget (f e, n)
+  | expr -> expr
+
 module EnvMap = Map.Make (struct
     type t = Id.ident
     let compare = Pervasives.compare

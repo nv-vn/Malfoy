@@ -33,15 +33,34 @@ let ast_of_stmt = function
   | Sopen m -> `Sopen m
   | _ -> `Sblank
 
-and map_expr f = function
+let rec map_expr f = function
   | `Etuple es -> `Etuple (List.map f es)
   | `Evariant (tag, args) -> `Evariant (tag, List.map f args)
   | `Eapply (f', x) -> `Eapply (f f', f x)
   | `Efun (pat, e) -> `Efun (pat, f e)
   | `Ematch (x, branches) -> `Ematch (f x, List.map (fun (p, e) -> (p, f e)) branches)
-  | `Ebind (pat, e, ctx) -> `Ebind (pat, f e, f ctx)
+  | `Ebind (pat, e, ctx) -> rebind pat (f e) (f ctx) f
   | `Eget (e, n) -> `Eget (f e, n)
   | expr -> expr
+
+and rebind pat e ctx f = match pat with
+  (* TODO: Recursively expand patterns? *)
+  | `Ptuple ps -> begin
+      let rec fold var n = function
+        | [] -> map_expr f ctx
+        | p::ps -> `Ebind (p, `Eget (var, n), fold var (n + 1) ps) in
+      let id = Id.fresh_var "%%tuple" in
+      `Ebind (`Pident id, map_expr f e, fold (`Eident id) 0 ps)
+    end
+  | `Pvariant (tag, ps) -> begin
+      let rec fold var n = function
+        | [] -> map_expr f ctx
+        | p::ps -> `Ebind (p, `Eget (var, n), fold var (n + 1) ps) in
+      let id = Id.fresh_var "%%tuple" in
+      (* TODO: Add tag check! *)
+      `Ebind (`Pident id, map_expr f e, fold (`Eident id) 0 ps)
+    end
+  | _ -> `Ebind (pat, map_expr f e, map_expr f ctx)
 
 module EnvMap = Map.Make (struct
     type t = Id.ident

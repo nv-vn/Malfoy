@@ -1,0 +1,17 @@
+(* [] and :: are syntactic sugar for Nil/Cons, respectively *)
+type List a = [ Nil
+              | Cons a (List a)]
+
+val length : forall a. List a -> Int
+let length =
+  let aux n xs = match xs with
+      | [] -> n
+      | x::xs -> aux (n + 1) xs
+    end in
+  aux 0
+
+val map : forall a b. (a -> b) -> List a -> List b
+let map f xs = match xs with
+    | [] -> []
+    | x::xs -> f x::map f xs
+  end

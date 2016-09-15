@@ -1,0 +1,5 @@
+val coerce : forall a b. a -> b
+extern coerce = special "%identity"
+
+val reflect : forall a. a -> a*
+extern reflect = special "%identity"

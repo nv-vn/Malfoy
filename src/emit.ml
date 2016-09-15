@@ -56,7 +56,7 @@ and rebind pat e ctx f = match pat with
       let rec fold var n = function
         | [] -> map_expr f ctx
         | p::ps -> `Ebind (p, `Eget (var, n), fold var (n + 1) ps) in
-      let id = Id.fresh_var "%%tuple" in
+      let id = Id.fresh_var "%%variant" in
       (* TODO: Add tag check! *)
       `Ebind (`Pident id, map_expr f e, fold (`Eident id) 0 ps)
     end

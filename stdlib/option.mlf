@@ -1,0 +1,21 @@
+type Option a = [ Some a
+                | None ]
+
+val map : forall a b. (a -> b) -> Option a -> Option b
+let map f x = match x with
+    | Some x -> Some (f x)
+    | None -> None
+  end
+
+val join : forall a. Option (Option a) -> Option a
+let join x = match x with
+    | Some (Some x) -> Some x
+    | Some None -> None
+    | None -> None
+  end
+
+val default : forall a. a -> Option a -> a
+let default a x = match x with
+    | Some x -> x
+    | None -> a
+  end

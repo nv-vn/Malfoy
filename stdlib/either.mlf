@@ -1,0 +1,15 @@
+type Either left right = [ Left left
+                         | Right right ]
+
+val map : forall left a b. (a -> b) -> Either left a -> Either left b
+let map f x = match x with
+    | Right x -> Right (f x)
+    | Left e -> Left e
+  end
+
+val join : forall left a. Either left (Either left a) -> Either left a
+let join f x = match x with
+    | Right (Right x) -> Right x
+    | Right (Left e) -> Left e
+    | Left e -> Left e
+  end

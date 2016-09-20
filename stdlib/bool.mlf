@@ -1,0 +1,17 @@
+type Bool = [ True
+            | False ]
+
+val not : Bool -> Bool
+extern not = special "%boolnot"
+
+val (&&) : Bool -> Bool -> Bool
+extern (&&) = special "%sequand"
+
+val (||) : Bool -> Bool -> Bool
+extern (||) = special "%sequor"
+
+val to_string : Bool -> String
+let to_string x = match x with
+    | True -> "True"
+    | False -> "False"
+  end

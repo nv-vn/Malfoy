@@ -173,3 +173,15 @@ dual R cont <=> S cont*
 * `as` syntax in types is kind of wonky... should we have a better way to reduce ambiguity than parens?
 * Should we accept single-line, Haskell-style comments (`-- ...`)?
 * Is `Dual` a pseudo-type? Maybe we should have some other notation? What about `Type*`?
+
+# Proposal v2
+
+* Add a distinction between types and behaviours
+  + `A` would be a type, with `a` as a type variable
+  + `A!` would be a behaviour, with `a!` as a behaviour variable
+  + Possibly use the `be` keyword to describe a behaviour?
+* Certain operations are allowed on behaviours (but not types)
+  + `A!*` (dual of `A!`), might need syntax changes...
+  + `A! := B!` ("state change" from `A!` to `B!`)
+    - In general, for a type `X A!` we would write this as `X A! := X B!`, where the _types_ must be preserved, but the behaviors can be altered
+  + Types can have behavioural arguments -- can behaviours have typical arguments?
